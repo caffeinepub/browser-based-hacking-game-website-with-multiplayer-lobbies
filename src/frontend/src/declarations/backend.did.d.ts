@@ -38,6 +38,11 @@ export interface MatchResultView {
   'matchId' : bigint,
   'timestamp' : Time,
 }
+export interface TerminalOutput {
+  'context' : [] | [string],
+  'solved' : boolean,
+  'lines' : Array<string>,
+}
 export type Time = bigint;
 export interface UserProfile {
   'gamesPlayed' : bigint,
@@ -61,6 +66,7 @@ export interface _SERVICE {
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'joinLobby' : ActorMethod<[bigint], undefined>,
   'leaveLobby' : ActorMethod<[bigint], undefined>,
+  'processTerminalCommand' : ActorMethod<[bigint, string], TerminalOutput>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'startMatch' : ActorMethod<[bigint], undefined>,
 }

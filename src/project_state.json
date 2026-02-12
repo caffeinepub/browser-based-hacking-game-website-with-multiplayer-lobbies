@@ -1,17 +1,20 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 15,
+  "projectStateVersion": 23,
   "summary": "Build a fun interactive browser-based hacking-style game website with multiplayer features, enhancing gameplay to feel more like a real hacking tool with richer interactive typing-based mechanics (not just a basic terminal).",
   "architectural_notes": [
     "Frontend expects backend actor to provide a startMatch method; backend Candid/interface must stay in sync with frontend calls to avoid initialization failures.",
-    "Support Google Search Console verification on the static frontend by adding either (a) the provided verification HTML file at the site root or (b) the verification meta tag in the document <head>, depending on hosting constraints."
+    "Support Google Search Console verification on the static frontend by adding either (a) the provided verification HTML file at the site root or (b) the verification meta tag in the document <head>, depending on hosting constraints.",
+    "Deployment/runtime dependency: backend canister must be running (not stopped) for frontend calls like createLobby/startMatch to succeed; stopped canister yields IC0508 reject code 5 and surfaces as INITIALIZATION_FAILED."
   ],
   "known_issues": [
     "Solo mode fails to load/stuck on \"initializing_solo_mode\".",
     "Solo mode initialization fails with \"INITIALIZATION_FAILED\" and RTS error \"blob_of_principal: invalid principal\" (invalid principal handling).",
-    "Solo mode fails with INITIALIZATION_FAILED because backend actor does not have a startMatch method available (API/interface mismatch)."
+    "Solo mode fails with INITIALIZATION_FAILED because backend actor does not have a startMatch method available (API/interface mismatch).",
+    "Production/Solo initialization can fail with INITIALIZATION_FAILED when backend canister is stopped; createLobby call is rejected with IC0508 (reject code 5) \"Canister <id> is stopped\".",
+    "Regression observed: Solo mode stuck again on \"INITIALIZING_SOLO_MODE...\" (not loading)."
   ],
-  "isFixRequest": false,
+  "isFixRequest": true,
   "existing_features": [
     {
       "id": "feature-create-the-core-gameplay-for-a-fun-simulated-hacking-browser-game-with-short-replayable-terminal-style-challenges-e-g-scanning-decoding-command-puzzles-that-can-be-played-in-solo-mode",
@@ -132,6 +135,94 @@
         "REQ-22"
       ],
       "version": 1
+    },
+    {
+      "id": "feature-add-a-shared-frontend-error-parsing-utility-that-converts-common-internet-computer-canister-agent-errors-into-clear-user-friendly-english-messages-including-a-dedicated-case-for-the-ic-rejection-error-when-the-backend-canister-is-stopped-e-g-reject-code-5-error-code-ic0508-message-contains-canister-id-is-stopped",
+      "title": "Add a shared frontend error-parsing utility that converts common Internet Computer canister/agent errors into clear, user-friendly English messages, including a dedicated case for the IC rejection error when the backend canister is stopped (e.g., reject_code 5 / error_code IC0508 / message contains \"Canister <id> is stopped\").",
+      "reqIds": [
+        "REQ-23"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-sologamepage-to-use-the-shared-error-parsing-utility-and-to-display-an-actionable-initialization-failed-state-when-createlobby-startmatch-fails-because-the-backend-canister-is-stopped-including-keeping-the-existing-retry-and-back-to-menu-controls",
+      "title": "Update SoloGamePage to use the shared error-parsing utility and to display an actionable INITIALIZATION_FAILED state when createLobby/startMatch fails because the backend canister is stopped, including keeping the existing Retry and Back to Menu controls.",
+      "reqIds": [
+        "REQ-24"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-replace-alert-based-error-handling-on-homepage-multiplayer-lobby-creation-with-an-in-page-styled-error-message-terminal-themed-using-the-shared-error-parsing-utility-so-users-get-consistent-and-readable-errors-including-stopped-canister-errors",
+      "title": "Replace alert-based error handling on HomePage multiplayer lobby creation with an in-page styled error message (terminal-themed) using the shared error-parsing utility, so users get consistent and readable errors (including stopped-canister errors).",
+      "reqIds": [
+        "REQ-25"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-lobbypage-and-matchpage-where-applicable-to-use-the-shared-error-parsing-utility-for-startmatch-leavelobby-processcommand-failures-and-show-a-consistent-user-visible-error-panel-when-these-operations-fail-instead-of-only-console-logging-or-generic-messages",
+      "title": "Update LobbyPage (and MatchPage where applicable) to use the shared error-parsing utility for startMatch/leaveLobby/processCommand failures and show a consistent, user-visible error panel when these operations fail (instead of only console logging or generic messages).",
+      "reqIds": [
+        "REQ-26"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-solo-mode-initialization-so-the-solo-page-cannot-get-stuck-on-the-initializing-solo-mode-loading-screen-after-creating-a-solo-lobby-and-calling-startmatch",
+      "title": "Fix Solo Mode initialization so the /solo page cannot get stuck on the \"INITIALIZING_SOLO_MODE...\" loading screen after creating a solo lobby and calling startMatch.",
+      "reqIds": [
+        "REQ-27"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-make-sologamepage-initialization-resilient-to-react-query-state-timing-by-ensuring-the-post-startmatch-lobby-refresh-is-performed-against-the-correct-lobbyid-and-continues-until-currentchallenge-is-present-or-fails-with-a-visible-error",
+      "title": "Make SoloGamePage initialization resilient to React Query/state timing by ensuring the post-startMatch lobby refresh is performed against the correct lobbyId and continues until currentChallenge is present (or fails with a visible error).",
+      "reqIds": [
+        "REQ-28"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-sologamepage-initialization-and-rendering-to-correctly-detect-when-lobbyview-currentchallenge-is-present-by-handling-the-internet-computer-candid-optional-encoding-e-g-challenge-instead-of-relying-on-javascript-truthiness-of-arrays",
+      "title": "Fix SoloGamePage initialization and rendering to correctly detect when `LobbyView.currentChallenge` is present by handling the Internet Computer Candid optional encoding (e.g., `[] | [Challenge]`) instead of relying on JavaScript truthiness of arrays.",
+      "reqIds": [
+        "REQ-29"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-matchpage-to-unwrap-and-validate-lobby-currentchallenge-before-rendering-terminalpanel-consistent-with-the-candid-optional-encoding-used-by-the-generated-backend-types",
+      "title": "Update MatchPage to unwrap and validate `lobby.currentChallenge` before rendering TerminalPanel, consistent with the Candid optional encoding used by the generated backend types.",
+      "reqIds": [
+        "REQ-30"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-small-shared-frontend-helper-for-unwrapping-candid-optionals-e-g-t-t-null-and-use-it-anywhere-the-ui-reads-lobbyview-currentchallenge-to-avoid-repeating-incorrect-truthiness-checks",
+      "title": "Add a small shared frontend helper for unwrapping Candid optionals (e.g., `[] | [T] -> T | null`) and use it anywhere the UI reads `LobbyView.currentChallenge` to avoid repeating incorrect truthiness checks.",
+      "reqIds": [
+        "REQ-31"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-audit-and-harden-solo-mode-end-to-end-create-lobby-start-match-load-first-challenge-to-eliminate-any-remaining-cases-where-the-user-gets-stuck-on-the-initializing-solo-mode-screen-including-when-backend-calls-fail-or-return-incomplete-lobby-state",
+      "title": "Audit and harden Solo Mode end-to-end (create lobby → start match → load first challenge) to eliminate any remaining cases where the user gets stuck on the \"INITIALIZING_SOLO_MODE...\" screen, including when backend calls fail or return incomplete lobby state.",
+      "reqIds": [
+        "REQ-32"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-frontend-useprocesscommand-hook-to-call-the-typed-backend-processcommand-method-directly-remove-the-any-based-method-detection-and-the-local-simulation-fallback-and-ensure-command-processing-failures-surface-as-clear-user-visible-english-errors-in-both-sologamepage-and-matchpage-terminal-output",
+      "title": "Update the frontend `useProcessCommand` hook to call the typed backend `processCommand` method directly (remove the `any`-based method detection and the local simulation fallback), and ensure command-processing failures surface as clear, user-visible English errors in both SoloGamePage and MatchPage terminal output.",
+      "reqIds": [
+        "REQ-34"
+      ],
+      "version": 1
     }
   ],
   "new_feature_requests": [
@@ -213,6 +304,22 @@
       "id": "AR-13",
       "summary": "Add Google Search Console verification support for the deployed site (place the provided google-site-verification HTML file or equivalent meta-tag) so the game can be verified and indexed by Google Search.",
       "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-15",
+      "summary": "Implement a real backend command-processing API for the terminal so the frontend no longer relies on the development-only simulation fallback in `useProcessCommand`; the backend API must accept `(lobbyId, commandText)` and return structured terminal output (`lines`, `solved`, optional `context`) compatible with the current `TerminalPanel` expectations.",
+      "reqIds": [
+        "REQ-33"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-17",
+      "summary": "Verify and fix backend Solo Mode authorization and identity handling so anonymous/unauthed users can play Solo Mode without triggering traps (including invalid principal handling), while keeping existing permission requirements for cooperative/competitive multiplayer actions.",
+      "reqIds": [
+        "REQ-35"
+      ],
       "status": "pending"
     }
   ],

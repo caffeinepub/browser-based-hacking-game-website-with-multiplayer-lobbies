@@ -1,10 +1,11 @@
 import { useNavigate } from '@tanstack/react-router';
-import { Terminal, Users, Zap, Trophy } from 'lucide-react';
+import { Terminal, Users, Zap, Trophy, AlertCircle, X } from 'lucide-react';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useCreateLobby } from '../hooks/useQueries';
 import { GameMode } from '../backend';
 import { useState } from 'react';
 import { APP_VERSION } from '../constants/appVersion';
+import { parseIcErrorToMessage } from '../utils/parseIcError';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export default function HomePage() {
   const isAuthenticated = !!identity;
   const createLobby = useCreateLobby();
   const [isCreatingLobby, setIsCreatingLobby] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const handleSoloPlay = () => {
     navigate({ to: '/solo' });
@@ -19,17 +21,19 @@ export default function HomePage() {
 
   const handleMultiplayerCreate = async () => {
     if (!isAuthenticated) {
-      alert('Please login to create a multiplayer lobby');
+      setErrorMessage('Please login to create a multiplayer lobby.');
       return;
     }
     
     setIsCreatingLobby(true);
+    setErrorMessage('');
+    
     try {
       const lobbyId = await createLobby.mutateAsync(GameMode.competitive);
       navigate({ to: '/lobby/$lobbyId', params: { lobbyId: lobbyId.toString() } });
     } catch (error) {
       console.error('Failed to create lobby:', error);
-      alert('Failed to create lobby. Please try again.');
+      setErrorMessage(parseIcErrorToMessage(error));
     } finally {
       setIsCreatingLobby(false);
     }
@@ -54,6 +58,29 @@ export default function HomePage() {
               Enter the cyber arena. Solve terminal challenges, crack codes, and compete against hackers worldwide. 
               This is a simulated game environment - no real systems are accessed.
             </p>
+
+            {/* Error Panel */}
+            {errorMessage && (
+              <div className="terminal-border bg-destructive/10 border-destructive p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-destructive terminal-text">ERROR</p>
+                      <p className="text-sm text-muted-foreground terminal-text">
+                        {errorMessage}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setErrorMessage('')}
+                    className="text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-4">
               <button

@@ -1,32 +1,76 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-12T20:45:28.756Z",
-  "summary": "REQ-22 is largely implemented by adding the requested Google Search Console HTML verification file under frontend/public. However, the file content shown in the diff appears to include a trailing newline/blank line, which may violate the requirement that the response body be exactly the specified string. The diff also includes unrelated frontend changes (routing/UI/hooks/etc.) that were not requested for this task.",
+  "generatedAt": "2026-02-12T21:54:52.853Z",
+  "summary": "REQ-32 appears largely addressed on the frontend via bounded polling, explicit error parsing, and more robust Solo initialization flow. However, REQ-33/REQ-34 are not met as specified because the backend/frontend API is implemented/consumed under `processTerminalCommand` (with a plain-text `lines: [Text]` output) rather than the required `processCommand(lobbyId, commandText)` returning the structured `lines[{type,text}]` shape. REQ-35 solo-lobby creation looks fixed, but multiplayer permission enforcement beyond `createLobby` cannot be fully verified from the truncated diff.",
   "missing_requirements": [
     {
-      "id": "REQ-22",
-      "requirement": "The response body of `/google79d2180f87c8c2c7.html` is exactly `google-site-verification: google79d2180f87c8c2c7.html` (no extra characters).",
-      "reason": "The added static file content in the diff shows an extra trailing newline/blank line after the verification string, so the body may not be byte-for-byte identical to the required string.",
+      "id": "REQ-33",
+      "requirement": "Backend exposes a public canister method `processCommand(lobbyId, commandText)` returning a `CommandOutput`-compatible object (lines with type/text, solved boolean, optional context), handling invalid commands without trapping and maintaining per-lobby progress.",
+      "reason": "The diff shows the frontend calling `actor.processTerminalCommand(...)` and the backend defining `TerminalOutput` as `lines : [Text]` (plain strings). There is no evidence of a `processCommand(lobbyId, commandText)` method nor of returning structured `{type,text}` lines directly from the backend.",
       "evidence": [
-        "frontend/public/google79d2180f87c8c2c7.html"
+        "backend/main.mo",
+        "frontend/src/hooks/useQueries.ts",
+        "frontend-file-summaries.txt (mentions `processTerminalCommand` and `frontend/src/backend.d.ts` typing it)"
+      ]
+    },
+    {
+      "id": "REQ-34",
+      "requirement": "Update `useProcessCommand` to call the typed backend `processCommand` directly (no simulation fallback, no `any`), and ensure backend failures surface as clear English errors in terminal output for SoloGamePage and MatchPage.",
+      "reason": "The hook calls `actor.processTerminalCommand(...)`, not `processCommand(...)`, so it does not meet the required API contract. Additionally, the hook transforms backend plain-text lines into typed lines via a frontend inference function rather than using a backend response already compatible with the `CommandOutput` shape.",
+      "evidence": [
+        "frontend/src/hooks/useQueries.ts"
+      ]
+    },
+    {
+      "id": "REQ-35",
+      "requirement": "Multiplayer (cooperative/competitive) create/join behavior continues to enforce existing `#user` permission checks (no permission regression).",
+      "reason": "The diff clearly shows permission enforcement for multiplayer lobby creation, but `joinLobby`/multiplayer join enforcement is not visible in the provided (truncated) `backend/main.mo` snippet, so this cannot be fully verified from the evidence provided.",
+      "evidence": [
+        "backend/main.mo (createLobby shows checks; join behavior not shown due to truncation)"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "Added/modified various frontend features unrelated to serving a single static Google verification HTML file (e.g., new /updates route, UI/layout changes, gameplay/auth hooks updates, Tailwind/theme updates).",
-      "reason": "BuildRequest explicitly scopes the change to adding the provided HTML file verification and lists broader SEO and other changes as non-goals; these additional frontend changes were not requested.",
+      "description": "Added an upgrade/migration module (`backend/migration.mo`) and wired migration into the actor.",
+      "reason": "Not requested by any of REQ-32..REQ-35; introduces upgrade/migration scaffolding beyond the described runtime-error/API-mismatch fixes.",
       "evidence": [
-        "frontend-file-summaries.txt",
-        "project_state.json"
+        "backend/migration.mo",
+        "backend/main.mo (\"with migration = Migration.run\")"
+      ]
+    },
+    {
+      "description": "Implemented/standardized a `processTerminalCommand` API and corresponding typing in the frontend instead of the requested `processCommand` method name/shape.",
+      "reason": "BuildRequest explicitly requires `processCommand(lobbyId, commandText)`; the diff introduces/uses a differently named method.",
+      "evidence": [
+        "frontend/src/hooks/useQueries.ts (calls `actor.processTerminalCommand`)",
+        "frontend-file-summaries.txt (mentions `frontend/src/backend.d.ts` typed `processTerminalCommand`)"
+      ]
+    },
+    {
+      "description": "Added a new `/updates` route and corresponding navigation link/UI changes.",
+      "reason": "Not part of the requested Solo-mode hardening or terminal command backend/frontend alignment work.",
+      "evidence": [
+        "frontend-file-summaries.txt (\"App.tsx\" includes new /updates route; \"AppLayout.tsx\" includes new UPDATES navigation link)"
+      ]
+    },
+    {
+      "description": "Enhanced TerminalPanel UX (history navigation, autocomplete, persistent disclaimer).",
+      "reason": "Not requested by REQ-32..REQ-35; this is additional functionality unrelated to fixing initialization/runtime/API mismatches.",
+      "evidence": [
+        "frontend-file-summaries.txt (\"frontend/src/components/game/TerminalPanel.tsx\" description)"
       ]
     }
   ],
-  "confidence": 0.74,
+  "confidence": 0.71,
   "changed_files": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/public/google79d2180f87c8c2c7.html",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/SoloGamePage.tsx",
+    "frontend/src/utils/parseIcError.ts",
     "project_state.json"
   ]
 }

@@ -2,33 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { useCreateLobby, useJoinLobby, useLeaveLobby, useStartMatch, useGetLobby } from '../hooks/useQueries';
 import { GameMode } from '../backend';
-import { Users, Play, Copy, Check, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { Users, Play, Copy, Check, ArrowLeft, Loader2, AlertCircle, X } from 'lucide-react';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { Button } from '../components/ui/button';
-
-function parseBackendError(error: unknown): string {
-  if (error instanceof Error) {
-    const message = error.message;
-    
-    // Extract trap messages from canister errors
-    if (message.includes('Unauthorized')) {
-      return 'Authorization failed. Only the host can start the match.';
-    }
-    if (message.includes('Lobby not found')) {
-      return 'Lobby could not be found.';
-    }
-    if (message.includes('Only the host can start')) {
-      return 'Only the lobby host can start the match.';
-    }
-    if (message.includes('Match is already active')) {
-      return 'This match is already in progress.';
-    }
-    
-    return message;
-  }
-  
-  return 'An unexpected error occurred. Please try again.';
-}
+import { parseIcErrorToMessage } from '../utils/parseIcError';
 
 export default function LobbyPage() {
   const navigate = useNavigate();
@@ -42,6 +19,7 @@ export default function LobbyPage() {
   const [lobbyId, setLobbyId] = useState<bigint | null>(null);
   const [copied, setCopied] = useState(false);
   const [startMatchError, setStartMatchError] = useState<string>('');
+  const [leaveError, setLeaveError] = useState<string>('');
   
   const { data: lobby, refetch: refetchLobby } = useGetLobby(lobbyId);
 
@@ -76,18 +54,21 @@ export default function LobbyPage() {
       await refetchLobby();
     } catch (error) {
       console.error('Failed to start match:', error);
-      setStartMatchError(parseBackendError(error));
+      setStartMatchError(parseIcErrorToMessage(error));
     }
   };
 
   const handleLeaveLobby = async () => {
     if (!lobbyId) return;
     
+    setLeaveError('');
+    
     try {
       await leaveLobby.mutateAsync(lobbyId);
       navigate({ to: '/' });
     } catch (error) {
       console.error('Failed to leave lobby:', error);
+      setLeaveError(parseIcErrorToMessage(error));
     }
   };
 
@@ -166,17 +147,19 @@ export default function LobbyPage() {
                 className="terminal-border bg-background p-3 flex items-center justify-between"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center terminal-border">
                     <span className="text-primary font-bold terminal-text">
                       {index + 1}
                     </span>
                   </div>
-                  <span className="text-foreground terminal-text font-mono text-sm">
-                    {player.toString().slice(0, 20)}...
-                  </span>
+                  <div>
+                    <p className="font-mono text-sm text-muted-foreground">
+                      {player.toString().slice(0, 8)}...
+                    </p>
+                  </div>
                 </div>
                 {player.toString() === lobby.host.toString() && (
-                  <span className="terminal-border bg-secondary px-3 py-1 text-xs font-bold text-primary terminal-text">
+                  <span className="terminal-border bg-secondary px-2 py-1 text-xs font-bold text-primary terminal-text">
                     HOST
                   </span>
                 )}
@@ -185,47 +168,63 @@ export default function LobbyPage() {
           </div>
         </div>
 
+        {/* Start Match Error Panel */}
         {startMatchError && (
-          <div className="terminal-border bg-destructive/10 p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm text-destructive terminal-text font-bold">
-                START_MATCH_FAILED
-              </p>
-              <p className="text-xs text-destructive/80 terminal-text mt-1">
-                {startMatchError}
-              </p>
+          <div className="terminal-border bg-destructive/10 border-destructive p-4 space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-destructive terminal-text">START_MATCH_FAILED</p>
+                  <p className="text-sm text-muted-foreground terminal-text">
+                    {startMatchError}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setStartMatchError('')}
+                className="text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Leave Lobby Error Panel */}
+        {leaveError && (
+          <div className="terminal-border bg-destructive/10 border-destructive p-4 space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-destructive terminal-text">LEAVE_FAILED</p>
+                  <p className="text-sm text-muted-foreground terminal-text">
+                    {leaveError}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setLeaveError('')}
+                className="text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </div>
         )}
 
         <div className="flex gap-3">
-          {isHost ? (
+          {isHost && (
             <Button
               onClick={handleStartMatch}
               disabled={startMatch.isPending || lobby.players.length === 0}
               className="flex-1 terminal-border bg-primary hover:bg-primary/90 terminal-text font-bold"
             >
-              {startMatch.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  STARTING...
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4 mr-2" />
-                  START_MATCH
-                </>
-              )}
+              <Play className="w-4 h-4 mr-2" />
+              {startMatch.isPending ? 'STARTING...' : 'START_MATCH'}
             </Button>
-          ) : (
-            <div className="flex-1 terminal-border bg-muted p-4 text-center">
-              <p className="text-muted-foreground terminal-text text-sm">
-                WAITING_FOR_HOST_TO_START...
-              </p>
-            </div>
           )}
-          
           <Button
             onClick={handleLeaveLobby}
             disabled={leaveLobby.isPending}

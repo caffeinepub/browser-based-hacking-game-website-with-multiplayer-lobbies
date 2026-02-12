@@ -49,6 +49,11 @@ export const MatchResultView = IDL.Record({
   'matchId' : IDL.Nat,
   'timestamp' : Time,
 });
+export const TerminalOutput = IDL.Record({
+  'context' : IDL.Opt(IDL.Text),
+  'solved' : IDL.Bool,
+  'lines' : IDL.Vec(IDL.Text),
+});
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
@@ -68,6 +73,11 @@ export const idlService = IDL.Service({
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'joinLobby' : IDL.Func([IDL.Nat], [], []),
   'leaveLobby' : IDL.Func([IDL.Nat], [], []),
+  'processTerminalCommand' : IDL.Func(
+      [IDL.Nat, IDL.Text],
+      [TerminalOutput],
+      [],
+    ),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'startMatch' : IDL.Func([IDL.Nat], [], []),
 });
@@ -116,6 +126,11 @@ export const idlFactory = ({ IDL }) => {
     'matchId' : IDL.Nat,
     'timestamp' : Time,
   });
+  const TerminalOutput = IDL.Record({
+    'context' : IDL.Opt(IDL.Text),
+    'solved' : IDL.Bool,
+    'lines' : IDL.Vec(IDL.Text),
+  });
   
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
@@ -135,6 +150,11 @@ export const idlFactory = ({ IDL }) => {
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'joinLobby' : IDL.Func([IDL.Nat], [], []),
     'leaveLobby' : IDL.Func([IDL.Nat], [], []),
+    'processTerminalCommand' : IDL.Func(
+        [IDL.Nat, IDL.Text],
+        [TerminalOutput],
+        [],
+      ),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'startMatch' : IDL.Func([IDL.Nat], [], []),
   });

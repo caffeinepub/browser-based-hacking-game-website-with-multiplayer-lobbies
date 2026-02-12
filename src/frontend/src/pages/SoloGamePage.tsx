@@ -1,45 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useCreateLobby, useStartMatch, useGetLobby, useProcessCommand } from '../hooks/useQueries';
 import { useActorReady } from '../hooks/useActorReady';
-import { GameMode } from '../backend';
+import { useActor } from '../hooks/useActor';
+import { GameMode, type Challenge } from '../backend';
 import TerminalPanel from '../components/game/TerminalPanel';
 import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { parseIcErrorToMessage } from '../utils/parseIcError';
+import { useQueryClient } from '@tanstack/react-query';
+import { unwrapCandidOptional } from '../utils/unwrapCandidOptional';
 
 type InitState = 'idle' | 'initializing' | 'ready' | 'error';
 
-function parseBackendError(error: unknown): string {
-  if (error instanceof Error) {
-    const message = error.message;
-    
-    // Extract trap messages from canister errors
-    if (message.includes('Unauthorized')) {
-      return 'Authorization failed. Please ensure you are logged in.';
-    }
-    if (message.includes('Lobby not found')) {
-      return 'Lobby could not be found. Please try again.';
-    }
-    if (message.includes('Only the host can start')) {
-      return 'Only the lobby host can start the match.';
-    }
-    if (message.includes('Match is already active')) {
-      return 'This match is already in progress.';
-    }
-    if (message.includes('Actor not available')) {
-      return 'Backend connection not ready. Please wait and try again.';
-    }
-    
-    // Return the original message if it's already user-friendly
-    return message;
-  }
-  
-  return 'An unexpected error occurred. Please try again.';
-}
+const MAX_POLL_ATTEMPTS = 10;
+const POLL_DELAY_MS = 500;
 
 export default function SoloGamePage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isActorReady } = useActorReady();
+  const { actor } = useActor();
   const createLobby = useCreateLobby();
   const startMatch = useStartMatch();
   const processCommand = useProcessCommand();
@@ -51,48 +32,152 @@ export default function SoloGamePage() {
   const [attempts, setAttempts] = useState(0);
   const [commandCount, setCommandCount] = useState(0);
   
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollAttemptsRef = useRef(0);
+  const isInitializingRef = useRef(false);
+  
   const { data: lobby, refetch: refetchLobby } = useGetLobby(lobbyId);
 
-  const initSoloGame = async () => {
-    if (!isActorReady) return;
+  // Clear any polling timers on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+        pollingTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  const pollLobbyUntilReady = async (targetLobbyId: bigint): Promise<boolean> => {
+    pollAttemptsRef.current = 0;
     
+    const poll = async (): Promise<boolean> => {
+      try {
+        if (!actor) {
+          throw new Error('Actor not available');
+        }
+        
+        // Force a fresh fetch using the exact lobbyId
+        const result = await queryClient.fetchQuery({
+          queryKey: ['lobby', targetLobbyId.toString()],
+          queryFn: async () => {
+            if (!actor) throw new Error('Actor not available');
+            return actor.getLobby(targetLobbyId);
+          },
+          staleTime: 0,
+        });
+        
+        // Unwrap the Candid optional to check if challenge is present
+        const challenge = unwrapCandidOptional<Challenge>(result?.currentChallenge as any);
+        
+        if (result && challenge !== null) {
+          // Success! Lobby has the challenge
+          return true;
+        }
+        
+        pollAttemptsRef.current++;
+        
+        if (pollAttemptsRef.current >= MAX_POLL_ATTEMPTS) {
+          // Exceeded max attempts
+          return false;
+        }
+        
+        // Wait and try again
+        await new Promise(resolve => {
+          pollingTimeoutRef.current = setTimeout(resolve, POLL_DELAY_MS);
+        });
+        
+        return poll();
+      } catch (error) {
+        console.error('Polling error:', error);
+        pollAttemptsRef.current++;
+        
+        if (pollAttemptsRef.current >= MAX_POLL_ATTEMPTS) {
+          return false;
+        }
+        
+        // Wait and try again even on error
+        await new Promise(resolve => {
+          pollingTimeoutRef.current = setTimeout(resolve, POLL_DELAY_MS);
+        });
+        
+        return poll();
+      }
+    };
+    
+    return poll();
+  };
+
+  const initSoloGame = async () => {
+    if (!isActorReady || !actor || isInitializingRef.current) return;
+    
+    isInitializingRef.current = true;
     setInitState('initializing');
     setErrorMessage('');
+    pollAttemptsRef.current = 0;
     
     try {
+      // Step 1: Create lobby
       const newLobbyId = await createLobby.mutateAsync(GameMode.solo);
       setLobbyId(newLobbyId);
       
+      // Step 2: Start match
       try {
         await startMatch.mutateAsync(newLobbyId);
       } catch (startError) {
         console.error('Failed to start match:', startError);
-        setErrorMessage(parseBackendError(startError));
+        setErrorMessage(parseIcErrorToMessage(startError));
         setInitState('error');
+        isInitializingRef.current = false;
         return;
       }
       
+      // Step 3: Poll until lobby has currentChallenge
+      const success = await pollLobbyUntilReady(newLobbyId);
+      
+      if (!success) {
+        setErrorMessage(
+          'Failed to load the challenge after starting the match. The game server may be slow or experiencing issues. Please try again.'
+        );
+        setInitState('error');
+        isInitializingRef.current = false;
+        return;
+      }
+      
+      // Final refetch to update the UI hook
       await refetchLobby();
       setInitState('ready');
+      isInitializingRef.current = false;
     } catch (error) {
       console.error('Failed to initialize solo game:', error);
-      setErrorMessage(parseBackendError(error));
+      setErrorMessage(parseIcErrorToMessage(error));
       setInitState('error');
+      isInitializingRef.current = false;
     }
   };
 
   useEffect(() => {
-    if (isActorReady && initState === 'idle') {
+    if (isActorReady && actor && initState === 'idle') {
       initSoloGame();
     }
-  }, [isActorReady, initState]);
+  }, [isActorReady, actor, initState]);
 
   const handleRetry = () => {
+    // Clear any in-flight polling
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
+    }
+    
+    // Reset all state
     setInitState('idle');
+    setErrorMessage('');
     setLobbyId(null);
     setScore(0);
     setAttempts(0);
     setCommandCount(0);
+    pollAttemptsRef.current = 0;
+    isInitializingRef.current = false;
   };
 
   const handleCommandProcess = async (command: string) => {
@@ -125,12 +210,18 @@ export default function SoloGamePage() {
     } catch (error) {
       console.error('Failed to process command:', error);
       setAttempts(prev => prev + 1);
+      
+      // Return error as terminal output with clear English message
+      const errorMessage = parseIcErrorToMessage(error);
       return {
-        lines: [{ type: 'error', text: 'Command processing failed. Please try again.' }],
+        lines: [{ type: 'error', text: errorMessage }],
         solved: false,
       };
     }
   };
+
+  // Unwrap the Candid optional challenge with proper type assertion
+  const challenge = unwrapCandidOptional<Challenge>(lobby?.currentChallenge as any);
 
   // Error state
   if (initState === 'error') {
@@ -164,8 +255,8 @@ export default function SoloGamePage() {
     );
   }
 
-  // Loading state
-  if (initState === 'initializing' || !lobby || !lobby.currentChallenge) {
+  // Loading state - check if challenge is actually present
+  if (initState === 'initializing' || !lobby || challenge === null) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4">
@@ -176,7 +267,7 @@ export default function SoloGamePage() {
     );
   }
 
-  // Ready state - game is active
+  // Ready state - game is active (challenge is guaranteed non-null here)
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -205,7 +296,7 @@ export default function SoloGamePage() {
       </div>
 
       <TerminalPanel
-        challenge={lobby.currentChallenge}
+        challenge={challenge}
         onCommandProcess={handleCommandProcess}
         isProcessing={processCommand.isPending}
       />

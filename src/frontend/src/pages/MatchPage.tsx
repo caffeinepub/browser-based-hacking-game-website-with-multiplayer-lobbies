@@ -4,7 +4,10 @@ import { useGetLobby, useProcessCommand } from '../hooks/useQueries';
 import TerminalPanel from '../components/game/TerminalPanel';
 import Scoreboard from '../components/game/Scoreboard';
 import RoundTimer from '../components/game/RoundTimer';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle, X } from 'lucide-react';
+import { parseIcErrorToMessage } from '../utils/parseIcError';
+import { unwrapCandidOptional } from '../utils/unwrapCandidOptional';
+import type { Challenge } from '../backend';
 
 export default function MatchPage() {
   const navigate = useNavigate();
@@ -15,6 +18,7 @@ export default function MatchPage() {
   const processCommand = useProcessCommand();
   
   const [hasCompleted, setHasCompleted] = useState(false);
+  const [commandError, setCommandError] = useState<string>('');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -30,6 +34,8 @@ export default function MatchPage() {
   }, [lobby?.isActive, lobby?.id, hasCompleted, navigate]);
 
   const handleCommandProcess = async (command: string) => {
+    setCommandError('');
+    
     try {
       const result = await processCommand.mutateAsync({ lobbyId, command });
       
@@ -41,14 +47,21 @@ export default function MatchPage() {
       return result;
     } catch (error) {
       console.error('Failed to process command:', error);
+      const errorMsg = parseIcErrorToMessage(error);
+      setCommandError(errorMsg);
+      
+      // Return error as terminal output for immediate feedback
       return {
-        lines: [{ type: 'error', text: 'Command processing failed. Please try again.' }],
+        lines: [{ type: 'error', text: errorMsg }],
         solved: false,
       };
     }
   };
 
-  if (!lobby || !lobby.currentChallenge) {
+  // Unwrap the Candid optional challenge with proper type assertion
+  const challenge = unwrapCandidOptional<Challenge>(lobby?.currentChallenge as any);
+
+  if (!lobby || challenge === null) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4">
@@ -59,6 +72,7 @@ export default function MatchPage() {
     );
   }
 
+  // At this point, challenge is guaranteed to be non-null
   return (
     <div className="space-y-6">
       <div className="grid md:grid-cols-3 gap-4">
@@ -72,8 +86,31 @@ export default function MatchPage() {
         </div>
       </div>
 
+      {/* Command Error Panel */}
+      {commandError && (
+        <div className="terminal-border bg-destructive/10 border-destructive p-4 space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-destructive terminal-text">COMMAND_ERROR</p>
+                <p className="text-sm text-muted-foreground terminal-text">
+                  {commandError}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setCommandError('')}
+              className="text-muted-foreground hover:text-destructive transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <TerminalPanel
-        challenge={lobby.currentChallenge}
+        challenge={challenge}
         onCommandProcess={handleCommandProcess}
         isProcessing={processCommand.isPending}
         disabled={hasCompleted}

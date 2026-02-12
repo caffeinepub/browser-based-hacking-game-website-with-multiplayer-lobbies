@@ -7,6 +7,11 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
+export interface Challenge {
+    id: bigint;
+    name: string;
+    description: string;
+}
 export interface LeaderboardEntry {
     player: Principal;
     wins: bigint;
@@ -33,10 +38,10 @@ export interface UserProfile {
     name: string;
     totalScore: bigint;
 }
-export interface Challenge {
-    id: bigint;
-    name: string;
-    description: string;
+export interface TerminalOutput {
+    context?: string;
+    solved: boolean;
+    lines: Array<string>;
 }
 export enum GameMode {
     solo = "solo",
@@ -61,6 +66,7 @@ export interface backendInterface {
     isCallerAdmin(): Promise<boolean>;
     joinLobby(lobbyId: bigint): Promise<void>;
     leaveLobby(lobbyId: bigint): Promise<void>;
+    processTerminalCommand(lobbyId: bigint, commandText: string): Promise<TerminalOutput>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     startMatch(lobbyId: bigint): Promise<void>;
 }

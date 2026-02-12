@@ -1,19 +1,40 @@
 import Array "mo:core/Array";
-import Int "mo:core/Int";
 import Iter "mo:core/Iter";
 import List "mo:core/List";
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
 import Order "mo:core/Order";
-import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
+import Principal "mo:core/Principal";
 import Set "mo:core/Set";
 import Text "mo:core/Text";
 import Time "mo:core/Time";
+import Migration "migration";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 
+(with migration = Migration.run)
 actor {
+  public type TerminalOutput = {
+    lines : [Text];
+    solved : Bool;
+    context : ?Text;
+  };
+
+  public type TerminalContext = {
+    #welcome;
+    #navigation;
+    #exploration;
+    #combat;
+    #puzzle;
+    #shop;
+    #bossFight;
+    #healingStation;
+    #upgradeStation;
+    #developerTest;
+    #unknown;
+  };
+
   type GameMode = {
     #solo;
     #cooperative;
@@ -157,9 +178,7 @@ actor {
               Runtime.trap("Unauthorized: Only users can join multiplayer lobbies");
             };
           };
-          case (#solo) {
-            // Solo lobbies can be joined by anyone (including the host themselves)
-          };
+          case (#solo) {};
         };
         if (not lobby.players.contains(caller)) {
           let updatedPlayers = lobby.players.clone();
@@ -182,6 +201,9 @@ actor {
     switch (lobbies.get(lobbyId)) {
       case (null) { Runtime.trap("Lobby not found") };
       case (?lobby) {
+        if (not lobby.players.contains(caller)) {
+          Runtime.trap("Unauthorized: You are not a member of this lobby");
+        };
         let updatedPlayers = lobby.players.clone();
         updatedPlayers.remove(caller);
         let updatedLobby : Lobby = {
@@ -254,11 +276,7 @@ actor {
   };
 
   public query ({ caller }) func getRecentMatches() : async [MatchResultView] {
-    var reversedArray = matchResults.reverse().toArray();
-    let endIndex = if (reversedArray.size() < 10) { reversedArray.size() } else {
-      10;
-    };
-    reversedArray.sliceToArray(0, endIndex);
+    matchResults.toArray().sliceToArray(0, 10);
   };
 
   public query ({ caller }) func getActiveLobbies() : async [LobbyView] {
@@ -280,6 +298,108 @@ actor {
     switch (lobbies.get(lobbyId)) {
       case (null) { null };
       case (?lobby) { ?toLobbyView(lobby) };
+    };
+  };
+
+  func interpretCommand(context : TerminalContext, commandText : Text) : TerminalOutput {
+    switch (context) {
+      case (#developerTest) {
+        if (Text.equal(commandText, "solve")) {
+          {
+            lines = ["Success: Task solved.", "Congratulations!"];
+            solved = true;
+            context = ?debug_show (context);
+          };
+        } else {
+          {
+            lines = [
+              "Welcome to the developer test!",
+              "Current context: developerTest",
+              "Output: " # commandText,
+            ];
+            solved = false;
+            context = ?debug_show (context);
+          };
+        };
+      };
+      case (_) {
+        {
+          lines = [
+            "Unknown context. Please retry.",
+            "Current context: " # debug_show (context),
+            "Output: " # commandText,
+          ];
+          solved = false;
+          context = null;
+        };
+      };
+    };
+  };
+
+  func withLobby(lobbyId : Nat, funcRef : Lobby -> TerminalOutput) : TerminalOutput {
+    switch (lobbies.get(lobbyId)) {
+      case (?lobby) { funcRef(lobby) };
+      case (null) {
+        {
+          lines = [
+            "Error: Lobby with ID " # lobbyId.toText() # " not found. ",
+            "Please retry with valid one.",
+          ];
+          solved = false;
+          context = ?"unknown";
+        };
+      };
+    };
+  };
+
+  func withLobbyContext(lobbyId : Nat, funcRef : (TerminalContext, Lobby) -> TerminalOutput) : TerminalOutput {
+    withLobby(lobbyId, func(lobby) { funcRef(#developerTest, lobby) });
+  };
+
+  public shared ({ caller }) func processTerminalCommand(lobbyId : Nat, commandText : Text) : async TerminalOutput {
+    switch (lobbies.get(lobbyId)) {
+      case (null) {
+        {
+          lines = [
+            "Error: Lobby with ID " # lobbyId.toText() # " not found.",
+            "Please create or join a valid lobby first.",
+          ];
+          solved = false;
+          context = ?"unknown";
+        };
+      };
+      case (?lobby) {
+        if (not lobby.players.contains(caller)) {
+          {
+            lines = [
+              "Error: You are not a member of this lobby.",
+              "Please join the lobby before sending commands.",
+            ];
+            solved = false;
+            context = ?"unknown";
+          };
+        } else {
+          switch (lobby.mode) {
+            case (#cooperative or #competitive) {
+              if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+                {
+                  lines = [
+                    "Error: Unauthorized access.",
+                    "Only authenticated users can interact with multiplayer lobbies.",
+                  ];
+                  solved = false;
+                  context = ?"unknown";
+                };
+              } else {
+                withLobbyContext(lobbyId, func(context, _lobby) { interpretCommand(context, commandText) });
+              };
+            };
+            case (#solo) {
+              withLobbyContext(lobbyId, func(context, _lobby) { interpretCommand(context, commandText) });
+            };
+          };
+        };
+      };
     };
   };
 };

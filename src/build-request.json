@@ -1,35 +1,92 @@
 {
   "kind": "build_request",
-  "title": "Add Google Search Console HTML file verification",
+  "title": "Code check-up: fix remaining runtime errors and backend/frontend API mismatches",
   "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-22",
-      "text": "Add Google Search Console ownership verification by serving the provided HTML verification file at the site root: create a static file named `google79d2180f87c8c2c7.html` whose contents are exactly `google-site-verification: google79d2180f87c8c2c7.html`, and ensure it is accessible at `https://<site-domain>/google79d2180f87c8c2c7.html`.",
+      "id": "REQ-32",
+      "text": "Audit and harden Solo Mode end-to-end (create lobby → start match → load first challenge) to eliminate any remaining cases where the user gets stuck on the \"INITIALIZING_SOLO_MODE...\" screen, including when backend calls fail or return incomplete lobby state.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "recent-messages-4",
+          "recent-messages-8"
         ],
         "quotes": [
-          "google-site-verification: google79d2180f87c8c2c7.html"
+          "we need do a check up on on code and error and fix any problem on that game  can you do this for me plz",
+          "yes plz"
         ]
       },
       "acceptanceCriteria": [
-        "A file named `google79d2180f87c8c2c7.html` exists in the frontend static public output (served from the site root).",
-        "Requesting `GET /google79d2180f87c8c2c7.html` returns HTTP 200.",
-        "The response body of `/google79d2180f87c8c2c7.html` is exactly: `google-site-verification: google79d2180f87c8c2c7.html` (including punctuation).",
-        "No React route intercepts or overrides the verification file path (it must be served as a static file, not an SPA route)."
+        "Navigating to /solo reliably reaches the playable terminal view (TerminalPanel rendered) or shows the existing \"INITIALIZATION_FAILED\" panel with a clear English error message and Retry/Back controls.",
+        "If createLobby or startMatch fails, SoloGamePage transitions to the error panel and does not remain in the loading state.",
+        "If polling for currentChallenge exceeds the max attempts, SoloGamePage shows the existing error panel with an actionable English message (no silent failure or infinite loading)."
+      ]
+    },
+    {
+      "id": "REQ-33",
+      "text": "Implement a real backend command-processing API for the terminal so the frontend no longer relies on the development-only simulation fallback in `useProcessCommand`; the backend API must accept `(lobbyId, commandText)` and return structured terminal output (`lines`, `solved`, optional `context`) compatible with the current `TerminalPanel` expectations.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "recent-messages-4"
+        ],
+        "quotes": [
+          "we need do a check up on on code and error and fix any problem on that game  can you do this for me plz"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Backend exposes a public canister method `processCommand(lobbyId, commandText)` that returns an object compatible with the frontend `CommandOutput` shape used in `frontend/src/hooks/useQueries.ts` (lines with type/text, solved boolean, optional context).",
+        "Calling processCommand for a valid lobby does not trap for normal gameplay inputs; invalid commands return an error line in the output rather than trapping.",
+        "The backend command handler maintains per-lobby progress well enough that a challenge can become `solved = true` via multi-step command entry (even if the initial implementation supports only a small command set)."
+      ]
+    },
+    {
+      "id": "REQ-34",
+      "text": "Update the frontend `useProcessCommand` hook to call the typed backend `processCommand` method directly (remove the `any`-based method detection and the local simulation fallback), and ensure command-processing failures surface as clear, user-visible English errors in both SoloGamePage and MatchPage terminal output.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "recent-messages-4"
+        ],
+        "quotes": [
+          "we need do a check up on on code and error and fix any problem on that game  can you do this for me plz"
+        ]
+      },
+      "acceptanceCriteria": [
+        "`frontend/src/hooks/useQueries.ts` no longer contains a local `simulateCommandProcessing` fallback for gameplay; it always calls the backend method when the actor is available.",
+        "If the backend rejects/throws on processCommand, the user sees a clear English error message in the terminal output (and MatchPage retains its error panel behavior).",
+        "No TypeScript `any` is required to access `processCommand` on the actor."
+      ]
+    },
+    {
+      "id": "REQ-35",
+      "text": "Verify and fix backend Solo Mode authorization and identity handling so anonymous/unauthed users can play Solo Mode without triggering traps (including invalid principal handling), while keeping existing permission requirements for cooperative/competitive multiplayer actions.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "recent-messages-4"
+        ],
+        "quotes": [
+          "we need do a check up on on code and error and fix any problem on that game  can you do this for me plz"
+        ]
+      },
+      "acceptanceCriteria": [
+        "`createLobby(#solo)` works for callers without `#user` permission and does not trap due to principal parsing/creation.",
+        "Solo lobby state after creation is internally consistent: `host` is a valid principal, and `players` contains the host.",
+        "Multiplayer (cooperative/competitive) create/join behavior continues to enforce the existing `#user` permission checks (no permission regression)."
       ]
     }
   ],
   "constraints": [
-    "Do not modify any files under the immutable frontend paths listed in SYSTEM_CONTEXT (e.g., `frontend/src/main.tsx`, `frontend/src/hooks/useActor.ts`, `frontend/src/hooks/useInternetIdentity.ts(x)`, `frontend/src/components/ui`).",
-    "Keep the backend architecture unchanged (single Motoko actor); no backend changes are required for this verification file."
+    "Backend must remain a single Motoko actor in `backend/main.mo` (no additional backend services).",
+    "Do not edit files under `frontend/src/components/ui` or any frontend immutable paths listed in SYSTEM_CONTEXT.",
+    "Use English for all user-facing text."
   ],
   "nonGoals": [
-    "Implementing broader SEO features (sitemaps, robots.txt tuning, structured data, or analytics).",
-    "Adding Google verification via DNS or Search Console meta tag (only the provided HTML file verification is required)."
+    "Adding third-party auth providers (only Internet Identity is supported).",
+    "Adding external databases or external backend services.",
+    "Implementing real-time networking (no WebSockets)."
   ],
   "imageRequirements": {
     "required": [],

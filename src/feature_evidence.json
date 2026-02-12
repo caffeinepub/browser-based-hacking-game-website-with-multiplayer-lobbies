@@ -2,10 +2,11 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-add-google-search-console-ownership-verification-by-serving-the-provided-html-verification-file-at-the-site-root-create-a-static-file-named-google79d2180f87c8c2c7-html-whose-contents-are-exactly-google-site-verification-google79d2180f87c8c2c7-html-and-ensure-it-is-accessible-at-https-site-domain-google79d2180f87c8c2c7-html",
-      "featureTitle": "Add Google Search Console ownership verification by serving the provided HTML verification file at the site root: create a static file named `google79d2180f87c8c2c7.html` whose contents are exactly `google-site-verification: google79d2180f87c8c2c7.html`, and ensure it is accessible at `https://<site-domain>/google79d2180f87c8c2c7.html`.",
+      "featureId": "feature-audit-and-harden-solo-mode-end-to-end-create-lobby-start-match-load-first-challenge-to-eliminate-any-remaining-cases-where-the-user-gets-stuck-on-the-initializing-solo-mode-screen-including-when-backend-calls-fail-or-return-incomplete-lobby-state",
+      "featureTitle": "Audit and harden Solo Mode end-to-end (create lobby → start match → load first challenge) to eliminate any remaining cases where the user gets stuck on the \"INITIALIZING_SOLO_MODE...\" screen, including when backend calls fail or return incomplete lobby state.",
       "files": [
-        "frontend/public/google79d2180f87c8c2c7.html"
+        "frontend/src/pages/SoloGamePage.tsx",
+        "frontend/src/utils/parseIcError.ts"
       ],
       "components": [
         "authorization@4.0.0",
@@ -16,7 +17,27 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-22"
+        "REQ-32"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-update-the-frontend-useprocesscommand-hook-to-call-the-typed-backend-processcommand-method-directly-remove-the-any-based-method-detection-and-the-local-simulation-fallback-and-ensure-command-processing-failures-surface-as-clear-user-visible-english-errors-in-both-sologamepage-and-matchpage-terminal-output",
+      "featureTitle": "Update the frontend `useProcessCommand` hook to call the typed backend `processCommand` method directly (remove the `any`-based method detection and the local simulation fallback), and ensure command-processing failures surface as clear, user-visible English errors in both SoloGamePage and MatchPage terminal output.",
+      "files": [
+        "frontend/src/hooks/useQueries.ts",
+        "frontend/src/pages/SoloGamePage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-34"
       ],
       "confidence": "high"
     }

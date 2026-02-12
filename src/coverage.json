@@ -1,34 +1,74 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-12T20:45:28.759Z",
+  "generatedAt": "2026-02-12T21:54:52.856Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 1,
-    "implemented": 1,
+    "total": 4,
+    "implemented": 2,
     "items": [
       {
-        "id": "REQ-22",
-        "summary": "Add Google Search Console ownership verification by serving the provided HTML verification file at the site root: create a static file named `google79d2180f87c8c2c7.html` whose contents are exactly `google-site-verification: google79d2180f87c8c2c7.html`, and ensure it is accessible at `https://<site-domain>/google79d2180f87c8c2c7.html`.",
+        "id": "REQ-32",
+        "summary": "Audit and harden Solo Mode end-to-end (create lobby → start match → load first challenge) to eliminate any remaining cases where the user gets stuck on the \"INITIALIZING_SOLO_MODE...\" screen, including when backend calls fail or return incomplete lobby state.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/public/google79d2180f87c8c2c7.html"
+          "frontend/src/pages/SoloGamePage.tsx",
+          "frontend/src/utils/parseIcError.ts"
         ],
         "matchedFiles": [
-          "frontend/public/google79d2180f87c8c2c7.html"
+          "frontend/src/pages/SoloGamePage.tsx",
+          "frontend/src/utils/parseIcError.ts"
         ]
+      },
+      {
+        "id": "REQ-33",
+        "summary": "Implement a real backend command-processing API for the terminal so the frontend no longer relies on the development-only simulation fallback in `useProcessCommand`; the backend API must accept `(lobbyId, commandText)` and return structured terminal output (`lines`, `solved`, optional `context`) compatible with the current `TerminalPanel` expectations.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-34",
+        "summary": "Update the frontend `useProcessCommand` hook to call the typed backend `processCommand` method directly (remove the `any`-based method detection and the local simulation fallback), and ensure command-processing failures surface as clear, user-visible English errors in both SoloGamePage and MatchPage terminal output.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/backend.d.ts",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/pages/SoloGamePage.tsx",
+          "frontend/src/pages/MatchPage.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/backend.d.ts",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/pages/SoloGamePage.tsx"
+        ]
+      },
+      {
+        "id": "REQ-35",
+        "summary": "Verify and fix backend Solo Mode authorization and identity handling so anonymous/unauthed users can play Solo Mode without triggering traps (including invalid principal handling), while keeping existing permission requirements for cooperative/competitive multiplayer actions.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
       }
     ]
   },
   "changedFiles": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/public/google79d2180f87c8c2c7.html",
+    "frontend/src/backend.d.ts",
+    "frontend/src/backend.ts",
+    "frontend/src/declarations/backend.did.d.ts",
+    "frontend/src/declarations/backend.did.js",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/SoloGamePage.tsx",
+    "frontend/src/utils/parseIcError.ts",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",
