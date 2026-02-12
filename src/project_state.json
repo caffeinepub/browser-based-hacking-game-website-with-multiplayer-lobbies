@@ -1,0 +1,223 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectStateVersion": 15,
+  "summary": "Build a fun interactive browser-based hacking-style game website with multiplayer features, enhancing gameplay to feel more like a real hacking tool with richer interactive typing-based mechanics (not just a basic terminal).",
+  "architectural_notes": [
+    "Frontend expects backend actor to provide a startMatch method; backend Candid/interface must stay in sync with frontend calls to avoid initialization failures.",
+    "Support Google Search Console verification on the static frontend by adding either (a) the provided verification HTML file at the site root or (b) the verification meta tag in the document <head>, depending on hosting constraints."
+  ],
+  "known_issues": [
+    "Solo mode fails to load/stuck on \"initializing_solo_mode\".",
+    "Solo mode initialization fails with \"INITIALIZATION_FAILED\" and RTS error \"blob_of_principal: invalid principal\" (invalid principal handling).",
+    "Solo mode fails with INITIALIZATION_FAILED because backend actor does not have a startMatch method available (API/interface mismatch)."
+  ],
+  "isFixRequest": false,
+  "existing_features": [
+    {
+      "id": "feature-create-the-core-gameplay-for-a-fun-simulated-hacking-browser-game-with-short-replayable-terminal-style-challenges-e-g-scanning-decoding-command-puzzles-that-can-be-played-in-solo-mode",
+      "title": "Create the core gameplay for a fun, simulated “hacking” browser game with short, replayable terminal-style challenges (e.g., scanning, decoding, command puzzles) that can be played in solo mode.",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-multiplayer-support-using-internet-computer-canister-state-users-can-create-join-leave-lobbies-choose-a-game-mode-competitive-or-cooperative-and-play-the-same-challenge-round-with-shared-state",
+      "title": "Add multiplayer support using Internet Computer canister state: users can create/join/leave lobbies, choose a game mode (competitive or cooperative), and play the same challenge round with shared state.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-a-simple-match-loop-and-scoring-system-suitable-for-multiplayer-timed-rounds-per-round-scoring-and-match-completion-with-a-results-screen-winner-for-competitive-team-score-for-cooperative",
+      "title": "Implement a simple match loop and scoring system suitable for multiplayer: timed rounds, per-round scoring, and match completion with a results screen (winner for competitive; team score for cooperative).",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-lightweight-leaderboard-history-view-that-shows-recent-matches-and-or-top-scores-stored-in-the-canister-no-external-database",
+      "title": "Add a lightweight leaderboard/history view that shows recent matches and/or top scores stored in the canister (no external database).",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-create-a-coherent-fun-visual-theme-for-the-app-colors-typography-layout-that-fits-a-playful-retro-terminal-cyber-arcade-aesthetic-and-apply-it-consistently-across-pages-and-game-screens",
+      "title": "Create a coherent, fun visual theme for the app (colors, typography, layout) that fits a playful “retro terminal / cyber arcade” aesthetic and apply it consistently across pages and game screens.",
+      "reqIds": [
+        "REQ-5"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-required-static-generated-images-to-the-frontend-and-use-them-in-the-ui-served-from-frontend-public-assets-generated-without-routing-through-the-backend",
+      "title": "Add required static generated images to the frontend and use them in the UI (served from frontend/public/assets/generated) without routing through the backend.",
+      "reqIds": [
+        "REQ-6"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-solo-mode-initialization-so-that-navigating-to-solo-reliably-creates-a-solo-lobby-starts-a-match-and-loads-the-first-challenge-instead-of-getting-stuck-on-the-initializing-solo-mode-loading-screen",
+      "title": "Fix Solo Mode initialization so that navigating to /solo reliably creates a solo lobby, starts a match, and loads the first challenge instead of getting stuck on the \"INITIALIZING_SOLO_MODE...\" loading screen.",
+      "reqIds": [
+        "REQ-7"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-frontend-make-sologamepage-initialization-robust-by-waiting-for-the-backend-actor-to-be-available-before-calling-createlobby-startmatch-and-by-displaying-an-error-retry-back-controls-if-initialization-fails-instead-of-only-logging-to-console",
+      "title": "Frontend: Make SoloGamePage initialization robust by waiting for the backend actor to be available before calling createLobby/startMatch, and by displaying an error + retry/back controls if initialization fails (instead of only logging to console).",
+      "reqIds": [
+        "REQ-9"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-frontend-fix-sologamepage-result-navigation-to-avoid-using-a-stale-score-value-when-submitting-a-correct-solution-ensure-the-score-passed-to-results-matches-the-displayed-score",
+      "title": "Frontend: Fix SoloGamePage result navigation to avoid using a stale score value when submitting a correct solution (ensure the score passed to /results matches the displayed score).",
+      "reqIds": [
+        "REQ-10"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-an-interactive-command-driven-terminal-gameplay-loop-not-single-submit-solution-only-where-each-entered-command-is-parsed-and-responded-to-with-realistic-simulated-tool-output-and-where-challenges-are-solved-through-multi-step-actions",
+      "title": "Add an interactive, command-driven terminal gameplay loop (not single “submit solution” only) where each entered command is parsed and responded to with realistic simulated tool output, and where challenges are solved through multi-step actions.",
+      "reqIds": [
+        "REQ-13"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-frontend-upgrade-the-terminal-ui-so-it-behaves-like-a-tool-like-shell-command-history-arrow-up-down-tab-completion-or-command-suggestions-clearer-prompt-context-e-g-current-path-target-and-streaming-style-output-rendering-from-the-backend-command-responses",
+      "title": "Frontend: Upgrade the terminal UI so it behaves like a tool-like shell: command history (arrow up/down), tab-completion or command suggestions, clearer prompt/context (e.g., current path/target), and streaming-style output rendering from the backend command responses.",
+      "reqIds": [
+        "REQ-16"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-new-updates-changelog-page-that-lists-recent-game-changes-in-clear-english-and-is-accessible-via-primary-navigation-header-so-players-can-see-what-was-updated",
+      "title": "Add a new \"Updates\" (changelog) page that lists recent game changes in clear English and is accessible via primary navigation (header) so players can see what was updated.",
+      "reqIds": [
+        "REQ-17"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-make-the-displayed-game-version-consistent-across-the-ui-by-defining-a-single-frontend-version-constant-and-using-it-wherever-the-version-is-shown-including-the-home-page-hero-subtitle",
+      "title": "Make the displayed game version consistent across the UI by defining a single frontend version constant and using it wherever the version is shown (including the Home page hero subtitle).",
+      "reqIds": [
+        "REQ-18"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-frontend-usestartmatch-hook-to-call-the-typed-backend-startmatch-method-directly-remove-the-any-type-assertion-and-the-manual-method-not-available-guard-once-the-backend-api-is-available-and-ensure-any-remaining-start-match-failures-surface-as-clear-errors-in-the-existing-solo-initialization-error-ui",
+      "title": "Update the frontend `useStartMatch` hook to call the typed backend `startMatch` method directly (remove the `any` type assertion and the manual \"method not available\" guard) once the backend API is available, and ensure any remaining start-match failures surface as clear errors in the existing Solo initialization error UI.",
+      "reqIds": [
+        "REQ-21"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-google-search-console-ownership-verification-by-serving-the-provided-html-verification-file-at-the-site-root-create-a-static-file-named-google79d2180f87c8c2c7-html-whose-contents-are-exactly-google-site-verification-google79d2180f87c8c2c7-html-and-ensure-it-is-accessible-at-https-site-domain-google79d2180f87c8c2c7-html",
+      "title": "Add Google Search Console ownership verification by serving the provided HTML verification file at the site root: create a static file named `google79d2180f87c8c2c7.html` whose contents are exactly `google-site-verification: google79d2180f87c8c2c7.html`, and ensure it is accessible at `https://<site-domain>/google79d2180f87c8c2c7.html`.",
+      "reqIds": [
+        "REQ-22"
+      ],
+      "version": 1
+    }
+  ],
+  "new_feature_requests": [
+    {
+      "id": "AR-1",
+      "summary": "Create a fun browser-based hacking game website with multiplayer (real-time compete/collaborate).",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Backend: Allow anonymous callers to play Solo Mode without requiring AccessControl #user permission, while keeping existing permission requirements for multiplayer modes (competitive/cooperative).",
+      "reqIds": [
+        "REQ-8"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-4",
+      "summary": "Fix backend Solo lobby creation to avoid trapping with an invalid principal string (RTS error: \"blob_of_principal: invalid principal\") by removing the use of `Principal.fromText(\"anonymous\")` in `createSoloLobby` and using a valid `Principal` value instead.",
+      "reqIds": [
+        "REQ-11"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-5",
+      "summary": "Ensure Solo lobby data is internally consistent after creation (host and players) so subsequent operations that rely on membership/host checks do not fail unexpectedly for Solo Mode.",
+      "reqIds": [
+        "REQ-12"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-6",
+      "summary": "Improve gameplay to feel more like a real hacking tool (more engaging interactive typing-based mechanics and less \"boring\" terminal/code-only experience) to increase player fun and retention.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-8",
+      "summary": "Backend: Implement per-lobby “terminal session” state and a command-processing API that takes (lobbyId, commandText) and returns structured terminal output plus updated session/challenge progress; ensure access rules remain consistent with current solo vs multiplayer authorization behavior.",
+      "reqIds": [
+        "REQ-14"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-9",
+      "summary": "Backend: Expand the challenge model to support multi-step, tool-like simulations (e.g., scanning/enumeration, file discovery, decoding) with a small set of simulated commands (e.g., help, clear, ls, cat, cd, scan, decode, grep) and realistic outputs; update the existing challenges to use this new structure.",
+      "reqIds": [
+        "REQ-15"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-10",
+      "summary": "Fix backend to expose/implement the startMatch method expected by the frontend (resolve Solo mode INITIALIZATION_FAILED due to \"startMatch method not available in backend\").",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-11",
+      "summary": "Implement a public backend method `startMatch(lobbyId)` that is exposed via the canister Candid interface so the frontend no longer fails with the error \"startMatch method not available in backend\" during Solo Mode initialization.",
+      "reqIds": [
+        "REQ-19"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-12",
+      "summary": "Define and enforce backend start-match rules: `startMatch(lobbyId)` must (1) validate the lobby exists, (2) validate the caller is authorized to start the match (host-only), and (3) transition the lobby to an active match state by setting `isActive = true` and assigning a non-null `currentChallenge` so the UI can render the Terminal challenge.",
+      "reqIds": [
+        "REQ-20"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-13",
+      "summary": "Add Google Search Console verification support for the deployed site (place the provided google-site-verification HTML file or equivalent meta-tag) so the game can be verified and indexed by Google Search.",
+      "reqIds": [],
+      "status": "pending"
+    }
+  ],
+  "gameProjectType": "none",
+  "projectName": "Browser-based hacking game website with multiplayer lobbies",
+  "clarification_mode": "instant",
+  "clarification_rounds": 0
+}

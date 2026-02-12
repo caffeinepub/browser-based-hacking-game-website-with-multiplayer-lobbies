@@ -1,0 +1,24 @@
+{
+  "kind": "feature_evidence_report",
+  "features": [
+    {
+      "featureId": "feature-add-google-search-console-ownership-verification-by-serving-the-provided-html-verification-file-at-the-site-root-create-a-static-file-named-google79d2180f87c8c2c7-html-whose-contents-are-exactly-google-site-verification-google79d2180f87c8c2c7-html-and-ensure-it-is-accessible-at-https-site-domain-google79d2180f87c8c2c7-html",
+      "featureTitle": "Add Google Search Console ownership verification by serving the provided HTML verification file at the site root: create a static file named `google79d2180f87c8c2c7.html` whose contents are exactly `google-site-verification: google79d2180f87c8c2c7.html`, and ensure it is accessible at `https://<site-domain>/google79d2180f87c8c2c7.html`.",
+      "files": [
+        "frontend/public/google79d2180f87c8c2c7.html"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-22"
+      ],
+      "confidence": "high"
+    }
+  ]
+}

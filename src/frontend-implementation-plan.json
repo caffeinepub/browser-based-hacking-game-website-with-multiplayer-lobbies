@@ -1,0 +1,24 @@
+{
+  "kind": "implementation_plan",
+  "version": "1.0",
+  "title": "Add Google Search Console HTML file verification",
+  "requirements": [
+    {
+      "id": "REQ-22",
+      "summary": "Serve the provided Google Search Console HTML verification file as a static asset at the site root.",
+      "acceptanceCriteria": [
+        "A file named `google79d2180f87c8c2c7.html` exists in the frontend static public output (served from the site root).",
+        "Requesting `GET /google79d2180f87c8c2c7.html` returns HTTP 200.",
+        "The response body of `/google79d2180f87c8c2c7.html` is exactly: `google-site-verification: google79d2180f87c8c2c7.html` (including punctuation).",
+        "No React route intercepts or overrides the verification file path (it must be served as a static file, not an SPA route)."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/public/google79d2180f87c8c2c7.html",
+          "operation": "create",
+          "description": "Create the Google Search Console verification file with contents exactly `google-site-verification: google79d2180f87c8c2c7.html` so it is served as a static file from the site root (not handled by the SPA router)."
+        }
+      ]
+    }
+  ]
+}
