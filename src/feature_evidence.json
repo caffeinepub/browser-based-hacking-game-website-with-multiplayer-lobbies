@@ -2,11 +2,11 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-audit-and-harden-solo-mode-end-to-end-create-lobby-start-match-load-first-challenge-to-eliminate-any-remaining-cases-where-the-user-gets-stuck-on-the-initializing-solo-mode-screen-including-when-backend-calls-fail-or-return-incomplete-lobby-state",
-      "featureTitle": "Audit and harden Solo Mode end-to-end (create lobby → start match → load first challenge) to eliminate any remaining cases where the user gets stuck on the \"INITIALIZING_SOLO_MODE...\" screen, including when backend calls fail or return incomplete lobby state.",
+      "featureId": "feature-update-sologamepage-initialization-so-it-does-not-surface-the-error-message-the-game-server-may-be-slow-or-experiencing-issues-prematurely-during-normal-but-slower-solo-startup-instead-keep-the-user-in-a-loading-state-with-clear-progress-messaging-and-only-fail-after-a-longer-explicit-timeout-with-retry-back-controls",
+      "featureTitle": "Update SoloGamePage initialization so it does not surface the error message “The game server may be slow or experiencing issues” prematurely during normal-but-slower Solo startup; instead, keep the user in a loading state with clear progress messaging and only fail after a longer, explicit timeout with Retry/Back controls.",
       "files": [
         "frontend/src/pages/SoloGamePage.tsx",
-        "frontend/src/utils/parseIcError.ts"
+        "frontend/src/utils/soloInitProgress.ts"
       ],
       "components": [
         "authorization@4.0.0",
@@ -17,16 +17,16 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-32"
+        "REQ-48"
       ],
       "confidence": "high"
     },
     {
-      "featureId": "feature-update-the-frontend-useprocesscommand-hook-to-call-the-typed-backend-processcommand-method-directly-remove-the-any-based-method-detection-and-the-local-simulation-fallback-and-ensure-command-processing-failures-surface-as-clear-user-visible-english-errors-in-both-sologamepage-and-matchpage-terminal-output",
-      "featureTitle": "Update the frontend `useProcessCommand` hook to call the typed backend `processCommand` method directly (remove the `any`-based method detection and the local simulation fallback), and ensure command-processing failures surface as clear, user-visible English errors in both SoloGamePage and MatchPage terminal output.",
+      "featureId": "feature-optimize-sologamepage-s-readiness-polling-backoff-behavior-to-reduce-perceived-latency-while-remaining-resilient-prefer-using-the-lobby-returned-by-startmatchandgetlobby-immediately-when-it-is-already-active-and-has-a-non-null-currentchallenge-otherwise-perform-a-bounded-retry-strategy-that-prioritizes-fast-success-but-tolerates-transient-delays-without-failing-early",
+      "featureTitle": "Optimize SoloGamePage’s readiness polling/backoff behavior to reduce perceived latency while remaining resilient: prefer using the lobby returned by startMatchAndGetLobby immediately when it is already active and has a non-null currentChallenge; otherwise, perform a bounded retry strategy that prioritizes fast success but tolerates transient delays without failing early.",
       "files": [
-        "frontend/src/hooks/useQueries.ts",
-        "frontend/src/pages/SoloGamePage.tsx"
+        "frontend/src/pages/SoloGamePage.tsx",
+        "frontend/src/utils/soloReadiness.ts"
       ],
       "components": [
         "authorization@4.0.0",
@@ -37,7 +37,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-34"
+        "REQ-49"
       ],
       "confidence": "high"
     }

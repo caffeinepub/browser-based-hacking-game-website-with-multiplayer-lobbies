@@ -1,57 +1,47 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Stabilize Solo Mode initialization and align terminal command processing with typed backend API",
+  "title": "Improve Solo Mode startup UX and resilient readiness polling",
   "requirements": [
     {
-      "id": "REQ-32",
-      "summary": "Harden Solo Mode initialization flow to reliably reach TerminalPanel or show the existing initialization error panel with actionable English messaging.",
+      "id": "REQ-48",
+      "summary": "Keep Solo Mode in a clear loading/progress state during slower initialization and only fail after an explicit longer timeout with Retry/Back controls.",
       "acceptanceCriteria": [
-        "Navigating to /solo reliably reaches the playable terminal view (TerminalPanel rendered) or shows the existing \"INITIALIZATION_FAILED\" panel with a clear English error message and Retry/Back controls.",
-        "If createLobby or startMatch fails, SoloGamePage transitions to the error panel and does not remain in the loading state.",
-        "If polling for currentChallenge exceeds the max attempts, SoloGamePage shows the existing error panel with an actionable English message (no silent failure or infinite loading)."
+        "When navigating to /solo on a healthy but slow backend, the page stays in a loading state and does not immediately enter INITIALIZATION_FAILED with the “server may be slow” message.",
+        "Solo initialization only transitions to the error panel after an explicit longer timeout window (not after the current short polling window), and the error panel still includes RETRY and BACK_TO_MENU.",
+        "User-facing loading text is in English and clearly indicates that the game is still connecting/loading (without blaming the user)."
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/SoloGamePage.tsx",
           "operation": "modify",
-          "description": "Refactor Solo Mode initialization into a cancellation-safe, non-recursive polling loop that always resolves to either \"ready\" (TerminalPanel renders) or \"error\" (INITIALIZATION_FAILED panel). Ensure createLobby/startMatch failures are caught at the top-level and set initState='error' with a clear English message from parseIcErrorToMessage, and ensure polling timeout/max-attempt failure sets a specific actionable English error message and clears any pending timers."
+          "description": "Revise Solo initialization state handling to use explicit phase-based progress messaging (e.g., creating lobby, starting match, waiting for challenge) and introduce a longer, explicit overall timeout before transitioning to INITIALIZATION_FAILED. Ensure the failure view remains the existing error panel with RETRY and BACK_TO_MENU, and ensure the “server may be slow…” messaging is only shown after the longer timeout rather than after the short initial polling window."
         },
         {
-          "path": "frontend/src/utils/parseIcError.ts",
-          "operation": "modify",
-          "description": "Expand error-to-message mapping to cover common Solo Mode initialization failures (e.g., lobby created but missing/empty state, transient fetch failures) so SoloGamePage shows clear, actionable English errors instead of vague/technical text."
+          "path": "frontend/src/utils/soloInitProgress.ts",
+          "operation": "create",
+          "description": "Add a small utility to support Solo initialization UX needs (e.g., consistent progress phase labels, elapsed-time formatting, and/or timeout helpers) so SoloGamePage can present clear English progress updates while waiting without prematurely failing."
         }
       ]
     },
     {
-      "id": "REQ-34",
-      "summary": "Update useProcessCommand to call the typed backend command-processing method only (no any-based detection or simulation fallback) and surface failures as clear English terminal output in SoloGamePage and MatchPage.",
+      "id": "REQ-49",
+      "summary": "Optimize Solo readiness checks: immediately accept ready lobbies from startMatchAndGetLobby; otherwise use bounded retries/backoff that favors quick success while tolerating transient delays without early failure.",
       "acceptanceCriteria": [
-        "`frontend/src/hooks/useQueries.ts` no longer contains a local `simulateCommandProcessing` fallback for gameplay; it always calls the backend method when the actor is available.",
-        "If the backend rejects/throws on processCommand, the user sees a clear English error message in the terminal output (and MatchPage retains its error panel behavior).",
-        "No TypeScript `any` is required to access `processCommand` on the actor."
+        "If startMatchAndGetLobby returns an active lobby with a present currentChallenge, SoloGamePage transitions to the ready terminal view without performing additional getLobby polling.",
+        "If the initial returned lobby is not ready, subsequent retries/polling use a bounded strategy that is less likely to fail within ~1 second solely due to transient latency.",
+        "The terminal view renders once lobby.isActive is true and currentChallenge is present (correctly handling Candid optionals), without flashing an error state in between."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/backend.d.ts",
-          "operation": "modify",
-          "description": "Align the generated backend typings used by the frontend with the intended typed command-processing method by adding/updating a `processCommand(lobbyId, commandText)` signature returning a structured output compatible with TerminalPanel (typed lines with type/text, solved boolean, optional context). Update/remove the old terminal command method typing if necessary to eliminate the need for `any` in hooks."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Remove `simulateCommandProcessing` and the `any`-based method detection. Update `useProcessCommand` to call the typed actor method `processCommand(lobbyId, commandText)` directly and normalize the returned value to the existing `CommandOutput` shape expected by TerminalPanel. Ensure errors are thrown as `Error` with a clear English message (preferably using parseIcErrorToMessage) so pages can surface them consistently."
-        },
-        {
           "path": "frontend/src/pages/SoloGamePage.tsx",
           "operation": "modify",
-          "description": "Ensure command-processing failures (from useProcessCommand calling the backend) are converted into user-visible terminal error lines with clear English text (using parseIcErrorToMessage), and avoid any unhandled promise rejections that could keep the UI in a stuck state."
+          "description": "Update the readiness logic to: (1) short-circuit to READY immediately when the lobby returned by startMatchAndGetLobby isActive and has a present currentChallenge; (2) when not ready, replace the current 5x200ms polling with a bounded retry strategy (fast initial checks followed by backoff) that does not fail within ~1 second and does not transition through an error state while still within the explicit longer timeout window; (3) centralize and harden currentChallenge presence checks to correctly handle Candid optional encodings without UI flashing."
         },
         {
-          "path": "frontend/src/pages/MatchPage.tsx",
-          "operation": "modify",
-          "description": "Keep MatchPage's existing command error panel behavior while ensuring backend command-processing failures also return an error line in terminal output with a clear English message (using parseIcErrorToMessage) and do not rely on any `any`-typed actor access."
+          "path": "frontend/src/utils/soloReadiness.ts",
+          "operation": "create",
+          "description": "Implement a reusable Solo readiness helper (e.g., isLobbyReady + bounded retry/backoff scheduler) that encapsulates the ‘isActive && currentChallenge present’ condition and provides a resilient polling plan for SoloGamePage to use."
         }
       ]
     }

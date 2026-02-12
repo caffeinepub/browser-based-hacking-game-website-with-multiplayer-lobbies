@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 23,
+  "projectStateVersion": 33,
   "summary": "Build a fun interactive browser-based hacking-style game website with multiplayer features, enhancing gameplay to feel more like a real hacking tool with richer interactive typing-based mechanics (not just a basic terminal).",
   "architectural_notes": [
     "Frontend expects backend actor to provide a startMatch method; backend Candid/interface must stay in sync with frontend calls to avoid initialization failures.",
@@ -12,7 +12,11 @@
     "Solo mode initialization fails with \"INITIALIZATION_FAILED\" and RTS error \"blob_of_principal: invalid principal\" (invalid principal handling).",
     "Solo mode fails with INITIALIZATION_FAILED because backend actor does not have a startMatch method available (API/interface mismatch).",
     "Production/Solo initialization can fail with INITIALIZATION_FAILED when backend canister is stopped; createLobby call is rejected with IC0508 (reject code 5) \"Canister <id> is stopped\".",
-    "Regression observed: Solo mode stuck again on \"INITIALIZING_SOLO_MODE...\" (not loading)."
+    "Regression observed: Solo mode stuck again on \"INITIALIZING_SOLO_MODE...\" (not loading).",
+    "Multiplayer mode not connecting (users unable to connect/join multiplayer session/lobby).",
+    "Post-deploy (v12): Solo mode still not loading; user reports persistent \"INITIALIZATION_FAILED\" on /solo.",
+    "Post-deploy (v13): Solo mode still shows \"INITIALIZATION_FAILED\" when attempting to launch Solo Mode.",
+    "Solo mode initializes but loads very slowly (performance issue on /solo startup)."
   ],
   "isFixRequest": true,
   "existing_features": [
@@ -223,6 +227,94 @@
         "REQ-34"
       ],
       "version": 1
+    },
+    {
+      "id": "feature-ensure-that-navigating-to-a-multiplayer-lobby-page-lobby-lobbyid-actually-connects-the-current-authenticated-user-to-that-lobby-by-performing-a-join-flow-when-needed-instead-of-only-polling-getlobby",
+      "title": "Ensure that navigating to a multiplayer lobby page (/lobby/$lobbyId) actually connects the current authenticated user to that lobby by performing a join flow when needed (instead of only polling getLobby).",
+      "reqIds": [
+        "REQ-36"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-an-explicit-join-lobby-retry-affordance-on-lobbypage-for-multiplayer-lobbies-so-users-who-fail-to-connect-can-manually-retry-joining-with-clear-user-facing-guidance-when-login-is-required",
+      "title": "Add an explicit “Join lobby”/retry affordance on LobbyPage for multiplayer lobbies so users who fail to connect can manually retry joining, with clear user-facing guidance when login is required.",
+      "reqIds": [
+        "REQ-37"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-prevent-multiplayer-matches-from-failing-due-to-missing-lobby-membership-by-ensuring-matchpage-attempts-to-join-the-lobby-for-cooperative-competitive-before-allowing-terminal-command-processing-and-shows-a-clear-error-state-if-the-user-cannot-join",
+      "title": "Prevent multiplayer matches from failing due to missing lobby membership by ensuring MatchPage attempts to join the lobby (for cooperative/competitive) before allowing terminal command processing, and shows a clear error state if the user cannot join.",
+      "reqIds": [
+        "REQ-38"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-diagnose-and-fix-the-solo-mode-initialization-failure-so-that-navigating-to-solo-reliably-completes-the-flow-createlobby-solo-startmatch-lobbyid-getlobby-lobbyid-and-reaches-the-playable-terminal-view-without-showing-initialization-failed-for-a-healthy-running-canister",
+      "title": "Diagnose and fix the Solo Mode initialization failure so that navigating to `/solo` reliably completes the flow `createLobby(#solo) -> startMatch(lobbyId) -> getLobby(lobbyId)` and reaches the playable terminal view without showing `INITIALIZATION_FAILED` for a healthy running canister.",
+      "reqIds": [
+        "REQ-39"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-harden-frontend-error-parsing-for-solo-initialization-so-parseicerrortomessage-produces-clear-english-messages-not-only-for-error-instances-but-also-for-common-internet-computer-agent-error-object-shapes-e-g-rejection-objects-containing-fields-like-reject-code-error-code-and-or-message-and-ensure-sologamepage-always-displays-a-non-empty-message-in-the-initialization-failed-panel",
+      "title": "Harden frontend error parsing for Solo initialization so `parseIcErrorToMessage` produces clear English messages not only for `Error` instances but also for common Internet Computer agent error object shapes (e.g., rejection objects containing fields like `reject_code`, `error_code`, and/or `message`), and ensure SoloGamePage always displays a non-empty message in the `INITIALIZATION_FAILED` panel.",
+      "reqIds": [
+        "REQ-40"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-diagnose-and-fix-the-solo-mode-initialization-flow-so-that-navigating-to-solo-reliably-reaches-the-playable-terminal-view-for-a-healthy-running-backend-canister-i-e-createlobby-solo-startmatch-lobbyid-getlobby-lobbyid-results-in-a-lobby-with-isactive-true-and-a-non-null-currentchallenge-without-entering-the-initialization-failed-ui-state",
+      "title": "Diagnose and fix the Solo Mode initialization flow so that navigating to `/solo` reliably reaches the playable terminal view for a healthy, running backend canister (i.e., `createLobby(#solo) -> startMatch(lobbyId) -> getLobby(lobbyId)` results in a lobby with `isActive = true` and a non-null `currentChallenge`, without entering the `INITIALIZATION_FAILED` UI state).",
+      "reqIds": [
+        "REQ-42"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-improve-the-solo-initialization-error-panel-so-it-always-shows-an-actionable-specific-english-error-reason-produced-by-parseicerrortomessage-including-when-the-backend-canister-is-stopped-and-ensure-the-displayed-reason-is-visually-prominent-not-easy-to-miss-so-users-understand-why-initialization-failed-occurred",
+      "title": "Improve the Solo initialization error panel so it always shows an actionable, specific English error reason produced by `parseIcErrorToMessage`, including when the backend canister is stopped, and ensure the displayed reason is visually prominent (not easy to miss) so users understand why `INITIALIZATION_FAILED` occurred.",
+      "reqIds": [
+        "REQ-44"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-reduce-solo-mode-initialization-latency-by-eliminating-the-extra-post-startmatch-polling-loop-when-possible-update-the-solo-initialization-flow-to-reach-a-ready-playable-terminal-view-with-fewer-backend-round-trips-and-without-waiting-up-to-the-current-max-poll-attempts-poll-delay-ms-window",
+      "title": "Reduce Solo Mode initialization latency by eliminating the extra post-startMatch polling loop when possible: update the Solo initialization flow to reach a ready playable terminal view with fewer backend round-trips and without waiting up to the current MAX_POLL_ATTEMPTS × POLL_DELAY_MS window.",
+      "reqIds": [
+        "REQ-45"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-frontend-sologamepage-initialization-to-use-the-new-backend-start-and-fetch-api-and-immediately-hydrate-the-react-query-cache-for-lobby-lobbyid-from-the-returned-lobby-data-so-the-ui-can-transition-to-the-ready-state-without-an-additional-getlobby-call-or-polling-in-the-common-case",
+      "title": "Update the frontend SoloGamePage initialization to use the new backend start-and-fetch API and immediately hydrate the React Query cache for ['lobby', lobbyId] from the returned lobby data, so the UI can transition to the ready state without an additional getLobby call or polling in the common case.",
+      "reqIds": [
+        "REQ-47"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-sologamepage-initialization-so-it-does-not-surface-the-error-message-the-game-server-may-be-slow-or-experiencing-issues-prematurely-during-normal-but-slower-solo-startup-instead-keep-the-user-in-a-loading-state-with-clear-progress-messaging-and-only-fail-after-a-longer-explicit-timeout-with-retry-back-controls",
+      "title": "Update SoloGamePage initialization so it does not surface the error message “The game server may be slow or experiencing issues” prematurely during normal-but-slower Solo startup; instead, keep the user in a loading state with clear progress messaging and only fail after a longer, explicit timeout with Retry/Back controls.",
+      "reqIds": [
+        "REQ-48"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-optimize-sologamepage-s-readiness-polling-backoff-behavior-to-reduce-perceived-latency-while-remaining-resilient-prefer-using-the-lobby-returned-by-startmatchandgetlobby-immediately-when-it-is-already-active-and-has-a-non-null-currentchallenge-otherwise-perform-a-bounded-retry-strategy-that-prioritizes-fast-success-but-tolerates-transient-delays-without-failing-early",
+      "title": "Optimize SoloGamePage’s readiness polling/backoff behavior to reduce perceived latency while remaining resilient: prefer using the lobby returned by startMatchAndGetLobby immediately when it is already active and has a non-null currentChallenge; otherwise, perform a bounded retry strategy that prioritizes fast success but tolerates transient delays without failing early.",
+      "reqIds": [
+        "REQ-49"
+      ],
+      "version": 1
     }
   ],
   "new_feature_requests": [
@@ -319,6 +411,44 @@
       "summary": "Verify and fix backend Solo Mode authorization and identity handling so anonymous/unauthed users can play Solo Mode without triggering traps (including invalid principal handling), while keeping existing permission requirements for cooperative/competitive multiplayer actions.",
       "reqIds": [
         "REQ-35"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-20",
+      "summary": "Add backend-side safeguards so Solo Mode cannot fail due to inconsistent lobby state: after `createLobby(#solo)`, the lobby must have `host` set to the caller principal and `players` containing the caller principal; after `startMatch(lobbyId)`, the lobby must have `isActive = true` and `currentChallenge` set to a non-null challenge value.",
+      "reqIds": [
+        "REQ-41"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-22",
+      "summary": "Harden backend Solo lobby invariants and authorization so that Solo mode cannot fail due to inconsistent lobby state: after `createLobby(#solo)`, the lobby `host` must equal the caller principal and `players` must contain the caller principal; `startMatch(lobbyId)` must enforce host-only start and must not depend on any `#user` permission checks for Solo mode.",
+      "reqIds": [
+        "REQ-43"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-23",
+      "summary": "Improve Solo Mode initialization performance to reduce slow loading time (speed up /solo startup).",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-25",
+      "summary": "Add a backend API that allows the frontend to start a Solo match and immediately obtain the updated lobby state needed to render the first challenge, so the frontend does not need to separately call getLobby and then poll for currentChallenge/isActive. Keep the existing startMatch(lobbyId) behavior for compatibility, and add a new public method (e.g., startMatchAndGetLobby) that returns the post-transition LobbyView (or equivalent) including isActive=true and currentChallenge non-null.",
+      "reqIds": [
+        "REQ-46"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-28",
+      "summary": "Make backend startMatchAndGetLobby more retry-friendly for Solo performance by avoiding unnecessary traps when the match is already active: if the lobby is already active and has a currentChallenge, return the current LobbyView instead of trapping with “Match is already active”.",
+      "reqIds": [
+        "REQ-50"
       ],
       "status": "pending"
     }

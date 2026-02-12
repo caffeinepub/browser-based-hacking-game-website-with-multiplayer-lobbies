@@ -152,6 +152,7 @@ export interface backendInterface {
     processTerminalCommand(lobbyId: bigint, commandText: string): Promise<TerminalOutput>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     startMatch(lobbyId: bigint): Promise<void>;
+    startMatchAndGetLobby(lobbyId: bigint): Promise<LobbyView | null>;
 }
 import type { Challenge as _Challenge, GameMode as _GameMode, LobbyView as _LobbyView, MatchResultView as _MatchResultView, TerminalOutput as _TerminalOutput, Time as _Time, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -378,6 +379,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.startMatch(arg0);
             return result;
+        }
+    }
+    async startMatchAndGetLobby(arg0: bigint): Promise<LobbyView | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.startMatchAndGetLobby(arg0);
+                return from_candid_opt_n14(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.startMatchAndGetLobby(arg0);
+            return from_candid_opt_n14(this._uploadFile, this._downloadFile, result);
         }
     }
 }

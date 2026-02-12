@@ -9,11 +9,10 @@ import Principal "mo:core/Principal";
 import Set "mo:core/Set";
 import Text "mo:core/Text";
 import Time "mo:core/Time";
-import Migration "migration";
+
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 
-(with migration = Migration.run)
 actor {
   public type TerminalOutput = {
     lines : [Text];
@@ -246,6 +245,34 @@ actor {
           isActive = true;
         };
         lobbies.add(lobbyId, updatedLobby);
+      };
+    };
+  };
+
+  public shared ({ caller }) func startMatchAndGetLobby(lobbyId : Nat) : async ?LobbyView {
+    switch (lobbies.get(lobbyId)) {
+      case (null) { Runtime.trap("Lobby not found") };
+      case (?lobby) {
+        if (caller != lobby.host) {
+          Runtime.trap("Unauthorized: Only the host can start the match");
+        };
+        if (lobby.isActive and lobby.currentChallenge != null) {
+          return ?toLobbyView(lobby);
+        };
+        let updatedLobby = {
+          id = lobby.id;
+          host = lobby.host;
+          players = lobby.players;
+          mode = lobby.mode;
+          currentChallenge = ?{
+            id = 1;
+            name = "Sample Challenge";
+            description = "Complete the sample challenge";
+          };
+          isActive = true;
+        };
+        lobbies.add(lobbyId, updatedLobby);
+        ?toLobbyView(updatedLobby);
       };
     };
   };

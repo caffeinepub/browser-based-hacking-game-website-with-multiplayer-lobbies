@@ -1,76 +1,66 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-12T21:54:52.853Z",
-  "summary": "REQ-32 appears largely addressed on the frontend via bounded polling, explicit error parsing, and more robust Solo initialization flow. However, REQ-33/REQ-34 are not met as specified because the backend/frontend API is implemented/consumed under `processTerminalCommand` (with a plain-text `lines: [Text]` output) rather than the required `processCommand(lobbyId, commandText)` returning the structured `lines[{type,text}]` shape. REQ-35 solo-lobby creation looks fixed, but multiplayer permission enforcement beyond `createLobby` cannot be fully verified from the truncated diff.",
+  "generatedAt": "2026-02-12T22:34:29.955Z",
+  "summary": "Frontend work appears to add Solo initialization progress utilities (phase messaging + 15s timeout) and a bounded backoff polling helper with correct Candid optional handling. However, key acceptance-criteria details for the SoloGamePage UI behavior are not fully verifiable from the truncated SoloGamePage diff, and the backend change to make startMatchAndGetLobby return the active lobby instead of trapping is not evidenced in the provided backend diff snippet. Additionally, the diff summary indicates unrelated frontend/navigation/features (e.g., /updates route, TerminalPanel enhancements) that were not requested for this build.",
   "missing_requirements": [
     {
-      "id": "REQ-33",
-      "requirement": "Backend exposes a public canister method `processCommand(lobbyId, commandText)` returning a `CommandOutput`-compatible object (lines with type/text, solved boolean, optional context), handling invalid commands without trapping and maintaining per-lobby progress.",
-      "reason": "The diff shows the frontend calling `actor.processTerminalCommand(...)` and the backend defining `TerminalOutput` as `lines : [Text]` (plain strings). There is no evidence of a `processCommand(lobbyId, commandText)` method nor of returning structured `{type,text}` lines directly from the backend.",
+      "id": "REQ-48",
+      "requirement": "Update SoloGamePage initialization so it does not surface the error message “The game server may be slow or experiencing issues” prematurely; keep user in loading with clear progress messaging; only fail after longer explicit timeout with Retry/Back controls.",
+      "reason": "Progress messaging and a longer explicit timeout helper are added, but the provided SoloGamePage diff is truncated before any rendering/error-panel logic; the diff excerpt does not show removal/avoidance of the specific premature error message nor confirm the error panel still includes RETRY and BACK_TO_MENU controls.",
       "evidence": [
-        "backend/main.mo",
-        "frontend/src/hooks/useQueries.ts",
-        "frontend-file-summaries.txt (mentions `processTerminalCommand` and `frontend/src/backend.d.ts` typing it)"
+        "frontend/src/utils/soloInitProgress.ts",
+        "frontend/src/pages/SoloGamePage.tsx (truncated)"
       ]
     },
     {
-      "id": "REQ-34",
-      "requirement": "Update `useProcessCommand` to call the typed backend `processCommand` directly (no simulation fallback, no `any`), and ensure backend failures surface as clear English errors in terminal output for SoloGamePage and MatchPage.",
-      "reason": "The hook calls `actor.processTerminalCommand(...)`, not `processCommand(...)`, so it does not meet the required API contract. Additionally, the hook transforms backend plain-text lines into typed lines via a frontend inference function rather than using a backend response already compatible with the `CommandOutput` shape.",
+      "id": "REQ-49",
+      "requirement": "Optimize SoloGamePage readiness polling/backoff: use lobby returned by startMatchAndGetLobby immediately when active and currentChallenge present; otherwise bounded retry that won’t fail within ~1s due to transient latency; render terminal when isActive and currentChallenge present without flashing error state.",
+      "reason": "Readiness check and bounded backoff utilities are present and handle Candid optionals, and SoloGamePage contains a polling loop, but the SoloGamePage diff is truncated before showing the decision logic that (a) skips polling when startMatchAndGetLobby already returns a ready lobby, and (b) avoids any intermediate error state before readiness.",
       "evidence": [
-        "frontend/src/hooks/useQueries.ts"
+        "frontend/src/utils/soloReadiness.ts",
+        "frontend/src/pages/SoloGamePage.tsx (truncated)"
       ]
     },
     {
-      "id": "REQ-35",
-      "requirement": "Multiplayer (cooperative/competitive) create/join behavior continues to enforce existing `#user` permission checks (no permission regression).",
-      "reason": "The diff clearly shows permission enforcement for multiplayer lobby creation, but `joinLobby`/multiplayer join enforcement is not visible in the provided (truncated) `backend/main.mo` snippet, so this cannot be fully verified from the evidence provided.",
+      "id": "REQ-50",
+      "requirement": "Backend startMatchAndGetLobby should not trap with “Match is already active” when lobby already active and has currentChallenge; instead return current LobbyView; keep host-only authorization; keep startMatch unchanged.",
+      "reason": "backend/main.mo is modified but the provided snippet is truncated and does not include the startMatchAndGetLobby implementation or any change showing it returns a LobbyView when already active instead of trapping.",
       "evidence": [
-        "backend/main.mo (createLobby shows checks; join behavior not shown due to truncation)"
+        "backend/main.mo (truncated)"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "Added an upgrade/migration module (`backend/migration.mo`) and wired migration into the actor.",
-      "reason": "Not requested by any of REQ-32..REQ-35; introduces upgrade/migration scaffolding beyond the described runtime-error/API-mismatch fixes.",
+      "description": "Added an /updates route and corresponding navigation link/version display changes.",
+      "reason": "Not requested; the BuildRequest is specifically about Solo startup latency/error timing and a backend retry-friendly behavior.",
       "evidence": [
-        "backend/migration.mo",
-        "backend/main.mo (\"with migration = Migration.run\")"
+        "frontend-file-summaries.txt (mentions App.tsx new /updates route; AppLayout.tsx new UPDATES link and version display)"
       ]
     },
     {
-      "description": "Implemented/standardized a `processTerminalCommand` API and corresponding typing in the frontend instead of the requested `processCommand` method name/shape.",
-      "reason": "BuildRequest explicitly requires `processCommand(lobbyId, commandText)`; the diff introduces/uses a differently named method.",
+      "description": "TerminalPanel enhanced with command history navigation, autocomplete suggestions, and additional UX changes.",
+      "reason": "Not requested and explicitly out of scope (no changes to terminal gameplay mechanics beyond startup/loading behavior).",
       "evidence": [
-        "frontend/src/hooks/useQueries.ts (calls `actor.processTerminalCommand`)",
-        "frontend-file-summaries.txt (mentions `frontend/src/backend.d.ts` typed `processTerminalCommand`)"
+        "frontend-file-summaries.txt (mentions frontend/src/components/game/TerminalPanel.tsx enhancements)"
       ]
     },
     {
-      "description": "Added a new `/updates` route and corresponding navigation link/UI changes.",
-      "reason": "Not part of the requested Solo-mode hardening or terminal command backend/frontend alignment work.",
+      "description": "Multiple multiplayer-related UI behavior changes (LobbyPage auto-join, MatchPage guard, various error panels) and other page changes (HomePage error panel, ResultsPage parsing, Leaderboard page display).",
+      "reason": "Not requested by REQ-48/49/50 and outside the stated focus on Solo startup/loading behavior and a specific backend method behavior.",
       "evidence": [
-        "frontend-file-summaries.txt (\"App.tsx\" includes new /updates route; \"AppLayout.tsx\" includes new UPDATES navigation link)"
-      ]
-    },
-    {
-      "description": "Enhanced TerminalPanel UX (history navigation, autocomplete, persistent disclaimer).",
-      "reason": "Not requested by REQ-32..REQ-35; this is additional functionality unrelated to fixing initialization/runtime/API mismatches.",
-      "evidence": [
-        "frontend-file-summaries.txt (\"frontend/src/components/game/TerminalPanel.tsx\" description)"
+        "frontend-file-summaries.txt (mentions LobbyPage, MatchPage, HomePage, ResultsPage, LeaderboardPage changes)"
       ]
     }
   ],
-  "confidence": 0.71,
+  "confidence": 0.62,
   "changed_files": [
     "backend/main.mo",
-    "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/hooks/useQueries.ts",
     "frontend/src/pages/SoloGamePage.tsx",
-    "frontend/src/utils/parseIcError.ts",
+    "frontend/src/utils/soloInitProgress.ts",
+    "frontend/src/utils/soloReadiness.ts",
     "project_state.json"
   ]
 }

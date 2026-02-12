@@ -1,54 +1,44 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-12T21:54:52.856Z",
+  "generatedAt": "2026-02-12T22:34:29.958Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 4,
+    "total": 3,
     "implemented": 2,
     "items": [
       {
-        "id": "REQ-32",
-        "summary": "Audit and harden Solo Mode end-to-end (create lobby → start match → load first challenge) to eliminate any remaining cases where the user gets stuck on the \"INITIALIZING_SOLO_MODE...\" screen, including when backend calls fail or return incomplete lobby state.",
+        "id": "REQ-48",
+        "summary": "Update SoloGamePage initialization so it does not surface the error message “The game server may be slow or experiencing issues” prematurely during normal-but-slower Solo startup; instead, keep the user in a loading state with clear progress messaging and only fail after a longer, explicit timeout with Retry/Back controls.",
         "status": "implemented",
         "plannedFiles": [
           "frontend/src/pages/SoloGamePage.tsx",
-          "frontend/src/utils/parseIcError.ts"
+          "frontend/src/utils/soloInitProgress.ts"
         ],
         "matchedFiles": [
           "frontend/src/pages/SoloGamePage.tsx",
-          "frontend/src/utils/parseIcError.ts"
+          "frontend/src/utils/soloInitProgress.ts"
         ]
       },
       {
-        "id": "REQ-33",
-        "summary": "Implement a real backend command-processing API for the terminal so the frontend no longer relies on the development-only simulation fallback in `useProcessCommand`; the backend API must accept `(lobbyId, commandText)` and return structured terminal output (`lines`, `solved`, optional `context`) compatible with the current `TerminalPanel` expectations.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-34",
-        "summary": "Update the frontend `useProcessCommand` hook to call the typed backend `processCommand` method directly (remove the `any`-based method detection and the local simulation fallback), and ensure command-processing failures surface as clear, user-visible English errors in both SoloGamePage and MatchPage terminal output.",
+        "id": "REQ-49",
+        "summary": "Optimize SoloGamePage’s readiness polling/backoff behavior to reduce perceived latency while remaining resilient: prefer using the lobby returned by startMatchAndGetLobby immediately when it is already active and has a non-null currentChallenge; otherwise, perform a bounded retry strategy that prioritizes fast success but tolerates transient delays without failing early.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/backend.d.ts",
-          "frontend/src/hooks/useQueries.ts",
           "frontend/src/pages/SoloGamePage.tsx",
-          "frontend/src/pages/MatchPage.tsx"
+          "frontend/src/utils/soloReadiness.ts"
         ],
         "matchedFiles": [
-          "frontend/src/backend.d.ts",
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/pages/SoloGamePage.tsx"
+          "frontend/src/pages/SoloGamePage.tsx",
+          "frontend/src/utils/soloReadiness.ts"
         ]
       },
       {
-        "id": "REQ-35",
-        "summary": "Verify and fix backend Solo Mode authorization and identity handling so anonymous/unauthed users can play Solo Mode without triggering traps (including invalid principal handling), while keeping existing permission requirements for cooperative/competitive multiplayer actions.",
+        "id": "REQ-50",
+        "summary": "Make backend startMatchAndGetLobby more retry-friendly for Solo performance by avoiding unnecessary traps when the match is already active: if the lobby is already active and has a currentChallenge, return the current LobbyView instead of trapping with “Match is already active”.",
         "status": "unknown",
         "plannedFiles": [],
         "matchedFiles": []
@@ -57,18 +47,13 @@
   },
   "changedFiles": [
     "backend/main.mo",
-    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/backend.d.ts",
-    "frontend/src/backend.ts",
-    "frontend/src/declarations/backend.did.d.ts",
-    "frontend/src/declarations/backend.did.js",
-    "frontend/src/hooks/useQueries.ts",
     "frontend/src/pages/SoloGamePage.tsx",
-    "frontend/src/utils/parseIcError.ts",
+    "frontend/src/utils/soloInitProgress.ts",
+    "frontend/src/utils/soloReadiness.ts",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

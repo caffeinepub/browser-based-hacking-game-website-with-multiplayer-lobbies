@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from '@tanstack/react-router';
-import { useCreateLobby, useJoinLobby, useLeaveLobby, useStartMatch, useGetLobby } from '../hooks/useQueries';
+import { useLeaveLobby, useStartMatch, useGetLobby } from '../hooks/useQueries';
+import { useLobbyAutoJoin } from '../hooks/useLobbyAutoJoin';
 import { GameMode } from '../backend';
-import { Users, Play, Copy, Check, ArrowLeft, Loader2, AlertCircle, X } from 'lucide-react';
+import { Users, Play, Copy, Check, ArrowLeft, Loader2, AlertCircle, X, LogIn } from 'lucide-react';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { Button } from '../components/ui/button';
 import { parseIcErrorToMessage } from '../utils/parseIcError';
@@ -12,7 +13,6 @@ export default function LobbyPage() {
   const params = useParams({ from: '/lobby/$lobbyId' });
   const { identity } = useInternetIdentity();
   
-  const joinLobby = useJoinLobby();
   const leaveLobby = useLeaveLobby();
   const startMatch = useStartMatch();
   
@@ -21,7 +21,21 @@ export default function LobbyPage() {
   const [startMatchError, setStartMatchError] = useState<string>('');
   const [leaveError, setLeaveError] = useState<string>('');
   
-  const { data: lobby, refetch: refetchLobby } = useGetLobby(lobbyId);
+  const { data: lobby, refetch: refetchLobby, isLoading: lobbyLoading } = useGetLobby(lobbyId);
+  
+  // Auto-join hook for multiplayer lobbies
+  const {
+    needsJoin,
+    isJoining,
+    joinError,
+    isAuthenticated,
+    retryJoin,
+    clearError: clearJoinError,
+  } = useLobbyAutoJoin({
+    lobbyId,
+    lobby,
+    lobbyLoading,
+  });
 
   useEffect(() => {
     const id = BigInt(params.lobbyId);
@@ -72,6 +86,12 @@ export default function LobbyPage() {
     }
   };
 
+  const handleRetryJoin = async () => {
+    clearJoinError();
+    await retryJoin();
+    await refetchLobby();
+  };
+
   const copyLobbyCode = () => {
     if (lobbyId) {
       navigator.clipboard.writeText(lobbyId.toString());
@@ -81,6 +101,11 @@ export default function LobbyPage() {
   };
 
   const isHost = lobby && identity && lobby.host.toString() === identity.getPrincipal().toString();
+  const isMultiplayer = lobby?.mode === GameMode.cooperative || lobby?.mode === GameMode.competitive;
+  const currentPrincipal = identity?.getPrincipal().toString();
+  const isMember = lobby && currentPrincipal 
+    ? lobby.players.some(p => p.toString() === currentPrincipal)
+    : false;
 
   if (!lobby) {
     return (
@@ -137,6 +162,73 @@ export default function LobbyPage() {
             </button>
           </div>
         </div>
+
+        {/* Multiplayer Join Section */}
+        {isMultiplayer && !isMember && (
+          <div className="terminal-border bg-secondary/20 p-4 space-y-3">
+            {!isAuthenticated ? (
+              <div className="flex items-start gap-3">
+                <LogIn className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                <div className="space-y-2 flex-1">
+                  <p className="text-sm font-bold text-primary terminal-text">LOGIN_REQUIRED</p>
+                  <p className="text-sm text-muted-foreground terminal-text">
+                    You must be logged in to join multiplayer lobbies. Please log in to continue.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div className="space-y-1 flex-1">
+                    <p className="text-sm font-bold text-primary terminal-text">
+                      {isJoining ? 'JOINING_LOBBY...' : 'NOT_IN_LOBBY'}
+                    </p>
+                    <p className="text-sm text-muted-foreground terminal-text">
+                      {isJoining 
+                        ? 'Attempting to join the lobby...'
+                        : 'You are not a member of this lobby yet.'}
+                    </p>
+                  </div>
+                </div>
+                
+                {!isJoining && (
+                  <Button
+                    onClick={handleRetryJoin}
+                    disabled={isJoining}
+                    className="w-full terminal-border bg-primary hover:bg-primary/90 terminal-text font-bold"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    {needsJoin ? 'JOIN_LOBBY' : 'RETRY_JOIN'}
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Join Error Panel */}
+        {joinError && (
+          <div className="terminal-border bg-destructive/10 border-destructive p-4 space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-destructive terminal-text">JOIN_FAILED</p>
+                  <p className="text-sm text-muted-foreground terminal-text">
+                    {joinError}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={clearJoinError}
+                className="text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-3">
           <h2 className="text-lg font-bold text-primary terminal-text">PLAYERS</h2>

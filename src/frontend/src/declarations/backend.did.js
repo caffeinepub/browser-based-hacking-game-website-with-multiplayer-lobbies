@@ -80,6 +80,7 @@ export const idlService = IDL.Service({
     ),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'startMatch' : IDL.Func([IDL.Nat], [], []),
+  'startMatchAndGetLobby' : IDL.Func([IDL.Nat], [IDL.Opt(LobbyView)], []),
 });
 
 export const idlInitArgs = [];
@@ -157,6 +158,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'startMatch' : IDL.Func([IDL.Nat], [], []),
+    'startMatchAndGetLobby' : IDL.Func([IDL.Nat], [IDL.Opt(LobbyView)], []),
   });
 };
 

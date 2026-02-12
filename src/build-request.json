@@ -1,105 +1,79 @@
 {
   "kind": "build_request",
-  "title": "Code check-up: fix remaining runtime errors and backend/frontend API mismatches",
+  "title": "Reduce Solo Mode startup latency and avoid premature “server may be slow” failure",
   "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-32",
-      "text": "Audit and harden Solo Mode end-to-end (create lobby → start match → load first challenge) to eliminate any remaining cases where the user gets stuck on the \"INITIALIZING_SOLO_MODE...\" screen, including when backend calls fail or return incomplete lobby state.",
+      "id": "REQ-48",
+      "text": "Update SoloGamePage initialization so it does not surface the error message “The game server may be slow or experiencing issues” prematurely during normal-but-slower Solo startup; instead, keep the user in a loading state with clear progress messaging and only fail after a longer, explicit timeout with Retry/Back controls.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "recent-messages-4",
-          "recent-messages-8"
+          "msg-1"
         ],
         "quotes": [
-          "we need do a check up on on code and error and fix any problem on that game  can you do this for me plz",
+          "the game on solo it say this to me. The game server may be slow or experiencing issues",
+          "Want me to push another optimization build now?",
           "yes plz"
         ]
       },
       "acceptanceCriteria": [
-        "Navigating to /solo reliably reaches the playable terminal view (TerminalPanel rendered) or shows the existing \"INITIALIZATION_FAILED\" panel with a clear English error message and Retry/Back controls.",
-        "If createLobby or startMatch fails, SoloGamePage transitions to the error panel and does not remain in the loading state.",
-        "If polling for currentChallenge exceeds the max attempts, SoloGamePage shows the existing error panel with an actionable English message (no silent failure or infinite loading)."
+        "When navigating to /solo on a healthy but slow backend, the page stays in a loading state and does not immediately enter INITIALIZATION_FAILED with the “server may be slow” message.",
+        "Solo initialization only transitions to the error panel after an explicit longer timeout window (not after the current short polling window), and the error panel still includes RETRY and BACK_TO_MENU.",
+        "User-facing loading text is in English and clearly indicates that the game is still connecting/loading (without blaming the user)."
       ]
     },
     {
-      "id": "REQ-33",
-      "text": "Implement a real backend command-processing API for the terminal so the frontend no longer relies on the development-only simulation fallback in `useProcessCommand`; the backend API must accept `(lobbyId, commandText)` and return structured terminal output (`lines`, `solved`, optional `context`) compatible with the current `TerminalPanel` expectations.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "recent-messages-4"
-        ],
-        "quotes": [
-          "we need do a check up on on code and error and fix any problem on that game  can you do this for me plz"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Backend exposes a public canister method `processCommand(lobbyId, commandText)` that returns an object compatible with the frontend `CommandOutput` shape used in `frontend/src/hooks/useQueries.ts` (lines with type/text, solved boolean, optional context).",
-        "Calling processCommand for a valid lobby does not trap for normal gameplay inputs; invalid commands return an error line in the output rather than trapping.",
-        "The backend command handler maintains per-lobby progress well enough that a challenge can become `solved = true` via multi-step command entry (even if the initial implementation supports only a small command set)."
-      ]
-    },
-    {
-      "id": "REQ-34",
-      "text": "Update the frontend `useProcessCommand` hook to call the typed backend `processCommand` method directly (remove the `any`-based method detection and the local simulation fallback), and ensure command-processing failures surface as clear, user-visible English errors in both SoloGamePage and MatchPage terminal output.",
+      "id": "REQ-49",
+      "text": "Optimize SoloGamePage’s readiness polling/backoff behavior to reduce perceived latency while remaining resilient: prefer using the lobby returned by startMatchAndGetLobby immediately when it is already active and has a non-null currentChallenge; otherwise, perform a bounded retry strategy that prioritizes fast success but tolerates transient delays without failing early.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "recent-messages-4"
+          "msg-1"
         ],
         "quotes": [
-          "we need do a check up on on code and error and fix any problem on that game  can you do this for me plz"
+          "Want me to push another optimization build now?",
+          "yes plz"
         ]
       },
       "acceptanceCriteria": [
-        "`frontend/src/hooks/useQueries.ts` no longer contains a local `simulateCommandProcessing` fallback for gameplay; it always calls the backend method when the actor is available.",
-        "If the backend rejects/throws on processCommand, the user sees a clear English error message in the terminal output (and MatchPage retains its error panel behavior).",
-        "No TypeScript `any` is required to access `processCommand` on the actor."
+        "If startMatchAndGetLobby returns an active lobby with a present currentChallenge, SoloGamePage transitions to the ready terminal view without performing additional getLobby polling.",
+        "If the initial returned lobby is not ready, subsequent retries/polling use a bounded strategy that is less likely to fail within ~1 second solely due to transient latency.",
+        "The terminal view renders once lobby.isActive is true and currentChallenge is present (correctly handling Candid optionals), without flashing an error state in between."
       ]
     },
     {
-      "id": "REQ-35",
-      "text": "Verify and fix backend Solo Mode authorization and identity handling so anonymous/unauthed users can play Solo Mode without triggering traps (including invalid principal handling), while keeping existing permission requirements for cooperative/competitive multiplayer actions.",
+      "id": "REQ-50",
+      "text": "Make backend startMatchAndGetLobby more retry-friendly for Solo performance by avoiding unnecessary traps when the match is already active: if the lobby is already active and has a currentChallenge, return the current LobbyView instead of trapping with “Match is already active”.",
       "target": "backend",
       "source": {
         "messageIds": [
-          "recent-messages-4"
+          "msg-1"
         ],
         "quotes": [
-          "we need do a check up on on code and error and fix any problem on that game  can you do this for me plz"
+          "Want me to push another optimization build now?",
+          "yes plz"
         ]
       },
       "acceptanceCriteria": [
-        "`createLobby(#solo)` works for callers without `#user` permission and does not trap due to principal parsing/creation.",
-        "Solo lobby state after creation is internally consistent: `host` is a valid principal, and `players` contains the host.",
-        "Multiplayer (cooperative/competitive) create/join behavior continues to enforce the existing `#user` permission checks (no permission regression)."
+        "Calling startMatchAndGetLobby(lobbyId) on a lobby that is already active returns ?LobbyView (non-null) with isActive = true and currentChallenge present, rather than trapping.",
+        "Host-only authorization remains enforced (caller must be lobby.host), consistent with existing behavior.",
+        "Existing startMatch(lobbyId) behavior remains unchanged for compatibility."
       ]
     }
   ],
   "constraints": [
-    "Backend must remain a single Motoko actor in `backend/main.mo` (no additional backend services).",
-    "Do not edit files under `frontend/src/components/ui` or any frontend immutable paths listed in SYSTEM_CONTEXT.",
-    "Use English for all user-facing text."
+    "Do not edit any frontend files under the immutable paths listed in SYSTEM_CONTEXT (compose UI components instead).",
+    "Backend must remain a single Motoko actor in backend/main.mo; add migration.mo only if state schema changes require it.",
+    "Use English for any user-facing text."
   ],
   "nonGoals": [
-    "Adding third-party auth providers (only Internet Identity is supported).",
-    "Adding external databases or external backend services.",
-    "Implementing real-time networking (no WebSockets)."
+    "Adding new gameplay/challenges/commands or changing terminal gameplay mechanics beyond startup/loading behavior.",
+    "Changing Internet Identity authentication behavior.",
+    "Adding new third-party services or real-time communication mechanisms."
   ],
   "imageRequirements": {
     "required": [],
     "edits": []
-  },
-  "userProfileUpdate": {
-    "goalsToAdd": [],
-    "goalsToRemove": [],
-    "preferencesToAdd": [],
-    "preferencesToRemove": [],
-    "miscToAdd": [],
-    "miscToRemove": [],
-    "fieldsToSet": {},
-    "fieldsToDelete": []
   }
 }

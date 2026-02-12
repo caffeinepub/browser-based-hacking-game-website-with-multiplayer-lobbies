@@ -1,12 +1,12 @@
 # Specification
 
 ## Summary
-**Goal:** Fix remaining Solo Mode runtime issues and backend/frontend API mismatches by hardening Solo Mode initialization and replacing the frontend’s simulated terminal command processing with a real backend `processCommand` API.
+**Goal:** Reduce Solo Mode startup latency and prevent premature “The game server may be slow or experiencing issues” failures during normal-but-slower initialization.
 
 **Planned changes:**
-- Harden Solo Mode initialization flow end-to-end (create lobby → start match → load first challenge) so failures/incomplete state/poll timeouts reliably transition to the existing error panel instead of sticking on “INITIALIZING_SOLO_MODE...”.
-- Add a backend canister method `processCommand(lobbyId, commandText)` that returns structured terminal output compatible with the frontend’s `CommandOutput` shape and supports per-lobby progress (including multi-step solving).
-- Update the frontend `useProcessCommand` hook to call the typed backend `processCommand` directly (remove `any` actor access and remove simulation fallback) and surface backend command-processing failures as clear English terminal output/errors.
-- Fix backend Solo Mode authorization/identity handling so anonymous users can create and play solo lobbies without traps, while preserving existing permission checks for multiplayer actions.
+- Update SoloGamePage initialization to stay in a loading state with clear English progress messaging and only transition to an error panel after a longer, explicit timeout.
+- Keep the existing error panel actions (RETRY and BACK_TO_MENU) when the explicit timeout is reached.
+- Optimize Solo readiness handling to immediately use the lobby returned by startMatchAndGetLobby when it is already active and has a non-null currentChallenge; otherwise, apply a bounded retry/polling strategy that avoids failing early due to transient latency.
+- Update backend startMatchAndGetLobby to return the current LobbyView (when already active and currentChallenge is present) instead of trapping with “Match is already active”, while preserving host-only authorization and leaving startMatch behavior unchanged.
 
-**User-visible outcome:** Navigating to `/solo` reliably reaches the playable terminal view or shows a clear “INITIALIZATION_FAILED” error with Retry/Back, and terminal commands are processed by the backend (with clear English error output if processing fails), including for anonymous Solo Mode users.
+**User-visible outcome:** Entering Solo Mode shows a stable loading experience with clear progress text, reaches the terminal view sooner when the lobby is already ready, and only shows a retryable error after a longer explicit timeout.
