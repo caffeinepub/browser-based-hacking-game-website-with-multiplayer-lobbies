@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
 import type { UserProfile, GameMode, LobbyView, LeaderboardEntry, MatchResultView } from '../backend';
 import { parseIcErrorToMessage } from '../utils/parseIcError';
+import { unwrapCandidOptional } from '../utils/unwrapCandidOptional';
 
 // CommandOutput type matching the frontend terminal expectations
 export interface CommandOutput {
@@ -91,11 +92,19 @@ export function useStartMatch() {
 
 export function useStartMatchAndGetLobby() {
   const { actor } = useActor();
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (lobbyId: bigint) => {
+    mutationFn: async (lobbyId: bigint): Promise<LobbyView> => {
       if (!actor) throw new Error('Actor not available');
-      return actor.startMatchAndGetLobby(lobbyId);
+      const result = await actor.startMatchAndGetLobby(lobbyId);
+      return result;
+    },
+    onSuccess: (lobbyView, lobbyId) => {
+      // Hydrate the React Query cache immediately to avoid extra round-trips
+      if (lobbyView) {
+        queryClient.setQueryData(['lobby', lobbyId.toString()], lobbyView);
+      }
     },
   });
 }
@@ -107,7 +116,9 @@ export function useGetLobby(lobbyId: bigint | null) {
     queryKey: ['lobby', lobbyId?.toString()],
     queryFn: async () => {
       if (!actor || !lobbyId) return null;
-      return actor.getLobby(lobbyId);
+      const result = await actor.getLobby(lobbyId);
+      // Unwrap Candid optional encoding if present
+      return unwrapCandidOptional<LobbyView>(result as any);
     },
     enabled: !!actor && !actorFetching && !!lobbyId,
     staleTime: 0,

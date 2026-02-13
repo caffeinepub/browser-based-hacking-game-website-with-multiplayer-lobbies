@@ -29,10 +29,11 @@ export function getPhaseMessage(phase: InitPhase): string {
 
 /**
  * Format elapsed time in seconds for display.
+ * Returns clear English text like "3 seconds" or "1 second".
  */
 export function formatElapsedTime(ms: number): string {
   const seconds = Math.floor(ms / 1000);
-  if (seconds < 1) return 'just now';
+  if (seconds < 1) return 'less than 1 second';
   if (seconds === 1) return '1 second';
   return `${seconds} seconds`;
 }

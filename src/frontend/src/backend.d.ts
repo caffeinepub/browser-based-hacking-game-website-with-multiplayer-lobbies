@@ -69,5 +69,5 @@ export interface backendInterface {
     processTerminalCommand(lobbyId: bigint, commandText: string): Promise<TerminalOutput>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     startMatch(lobbyId: bigint): Promise<void>;
-    startMatchAndGetLobby(lobbyId: bigint): Promise<LobbyView | null>;
+    startMatchAndGetLobby(lobbyId: bigint): Promise<LobbyView>;
 }

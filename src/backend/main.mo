@@ -249,7 +249,7 @@ actor {
     };
   };
 
-  public shared ({ caller }) func startMatchAndGetLobby(lobbyId : Nat) : async ?LobbyView {
+  public shared ({ caller }) func startMatchAndGetLobby(lobbyId : Nat) : async LobbyView {
     switch (lobbies.get(lobbyId)) {
       case (null) { Runtime.trap("Lobby not found") };
       case (?lobby) {
@@ -257,7 +257,7 @@ actor {
           Runtime.trap("Unauthorized: Only the host can start the match");
         };
         if (lobby.isActive and lobby.currentChallenge != null) {
-          return ?toLobbyView(lobby);
+          return toLobbyView(lobby);
         };
         let updatedLobby = {
           id = lobby.id;
@@ -272,7 +272,7 @@ actor {
           isActive = true;
         };
         lobbies.add(lobbyId, updatedLobby);
-        ?toLobbyView(updatedLobby);
+        toLobbyView(updatedLobby);
       };
     };
   };
@@ -324,7 +324,12 @@ actor {
   public query ({ caller }) func getLobby(lobbyId : Nat) : async ?LobbyView {
     switch (lobbies.get(lobbyId)) {
       case (null) { null };
-      case (?lobby) { ?toLobbyView(lobby) };
+      case (?lobby) {
+        if (not lobby.players.contains(caller) and not AccessControl.isAdmin(accessControlState, caller)) {
+          Runtime.trap("Unauthorized: Only lobby members or admins can view lobby details");
+        };
+        ?toLobbyView(lobby);
+      };
     };
   };
 

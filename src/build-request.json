@@ -1,76 +1,56 @@
 {
   "kind": "build_request",
-  "title": "Reduce Solo Mode startup latency and avoid premature “server may be slow” failure",
+  "title": "Further tighten Solo Mode startup latency and loading UX",
   "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-48",
-      "text": "Update SoloGamePage initialization so it does not surface the error message “The game server may be slow or experiencing issues” prematurely during normal-but-slower Solo startup; instead, keep the user in a loading state with clear progress messaging and only fail after a longer, explicit timeout with Retry/Back controls.",
+      "id": "REQ-54",
+      "text": "Reduce perceived and actual Solo startup latency by tightening the Solo readiness fallback path so the UI reaches the playable terminal state with fewer delays when `startMatchAndGetLobby` returns a lobby that is not yet ready (active + non-null currentChallenge). This includes tuning the bounded retry/backoff delays used by Solo readiness polling to favor faster early retries while remaining within the overall Solo init timeout.",
       "target": "frontend",
       "source": {
         "messageIds": [
+          "msg-2",
           "msg-1"
         ],
         "quotes": [
-          "the game on solo it say this to me. The game server may be slow or experiencing issues",
-          "Want me to push another optimization build now?",
-          "yes plz"
+          "yes plz",
+          "Version 17 is live — can you try Solo again and see if the loading feels any quicker now? If it still hesitates, I can tighten it further."
         ]
       },
       "acceptanceCriteria": [
-        "When navigating to /solo on a healthy but slow backend, the page stays in a loading state and does not immediately enter INITIALIZATION_FAILED with the “server may be slow” message.",
-        "Solo initialization only transitions to the error panel after an explicit longer timeout window (not after the current short polling window), and the error panel still includes RETRY and BACK_TO_MENU.",
-        "User-facing loading text is in English and clearly indicates that the game is still connecting/loading (without blaming the user)."
+        "When navigating to /solo, if `startMatchAndGetLobby` returns a lobby that is not ready, the subsequent readiness polling attempts occur with tighter early delays than the current default (100ms, 200ms, 400ms, ...), improving time-to-ready in common transient-delay cases.",
+        "The readiness polling remains bounded (no infinite loops) and respects the overall Solo initialization timeout (currently defined in `frontend/src/utils/soloInitProgress.ts`).",
+        "Solo Mode still transitions to `INITIALIZATION_FAILED` with Retry/Back controls if the lobby never becomes ready within the configured bounds/timeout."
       ]
     },
     {
-      "id": "REQ-49",
-      "text": "Optimize SoloGamePage’s readiness polling/backoff behavior to reduce perceived latency while remaining resilient: prefer using the lobby returned by startMatchAndGetLobby immediately when it is already active and has a non-null currentChallenge; otherwise, perform a bounded retry strategy that prioritizes fast success but tolerates transient delays without failing early.",
+      "id": "REQ-55",
+      "text": "Improve the Solo initialization loading UX messaging so progress feels more responsive during slower startups: display phase-specific English progress text and include elapsed time during `INITIALIZING_SOLO_MODE` to reassure users the game is still working while polling for readiness.",
       "target": "frontend",
       "source": {
         "messageIds": [
+          "msg-2",
           "msg-1"
         ],
         "quotes": [
-          "Want me to push another optimization build now?",
-          "yes plz"
+          "yes plz",
+          "see if the loading feels any quicker now"
         ]
       },
       "acceptanceCriteria": [
-        "If startMatchAndGetLobby returns an active lobby with a present currentChallenge, SoloGamePage transitions to the ready terminal view without performing additional getLobby polling.",
-        "If the initial returned lobby is not ready, subsequent retries/polling use a bounded strategy that is less likely to fail within ~1 second solely due to transient latency.",
-        "The terminal view renders once lobby.isActive is true and currentChallenge is present (correctly handling Candid optionals), without flashing an error state in between."
-      ]
-    },
-    {
-      "id": "REQ-50",
-      "text": "Make backend startMatchAndGetLobby more retry-friendly for Solo performance by avoiding unnecessary traps when the match is already active: if the lobby is already active and has a currentChallenge, return the current LobbyView instead of trapping with “Match is already active”.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ],
-        "quotes": [
-          "Want me to push another optimization build now?",
-          "yes plz"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Calling startMatchAndGetLobby(lobbyId) on a lobby that is already active returns ?LobbyView (non-null) with isActive = true and currentChallenge present, rather than trapping.",
-        "Host-only authorization remains enforced (caller must be lobby.host), consistent with existing behavior.",
-        "Existing startMatch(lobbyId) behavior remains unchanged for compatibility."
+        "During Solo initialization (loading state), the UI shows the current phase message (creating/starting/loading) and also shows elapsed time since initialization started in clear English (e.g., \"Elapsed: 3 seconds\").",
+        "The elapsed-time display updates while initialization is in progress and disappears once the terminal is ready or the error state is shown.",
+        "All user-facing text added/changed for this improvement is in English."
       ]
     }
   ],
   "constraints": [
-    "Do not edit any frontend files under the immutable paths listed in SYSTEM_CONTEXT (compose UI components instead).",
-    "Backend must remain a single Motoko actor in backend/main.mo; add migration.mo only if state schema changes require it.",
-    "Use English for any user-facing text."
+    "Do not edit files under `frontend/src/components/ui` (read-only Shadcn components).",
+    "Do not modify immutable hook entrypoints listed in SYSTEM_CONTEXT (e.g., `frontend/src/hooks/useActor.ts`, `frontend/src/hooks/useInternetIdentity.ts(x)`, `frontend/src/main.tsx`)."
   ],
   "nonGoals": [
-    "Adding new gameplay/challenges/commands or changing terminal gameplay mechanics beyond startup/loading behavior.",
-    "Changing Internet Identity authentication behavior.",
-    "Adding new third-party services or real-time communication mechanisms."
+    "Do not change backend canister APIs or Motoko logic as part of this request.",
+    "Do not add new gameplay features, challenges, or multiplayer changes."
   ],
   "imageRequirements": {
     "required": [],

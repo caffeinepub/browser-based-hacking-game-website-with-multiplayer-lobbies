@@ -1,62 +1,29 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-12T22:34:29.955Z",
-  "summary": "Frontend work appears to add Solo initialization progress utilities (phase messaging + 15s timeout) and a bounded backoff polling helper with correct Candid optional handling. However, key acceptance-criteria details for the SoloGamePage UI behavior are not fully verifiable from the truncated SoloGamePage diff, and the backend change to make startMatchAndGetLobby return the active lobby instead of trapping is not evidenced in the provided backend diff snippet. Additionally, the diff summary indicates unrelated frontend/navigation/features (e.g., /updates route, TerminalPanel enhancements) that were not requested for this build.",
+  "generatedAt": "2026-02-12T22:55:09.196Z",
+  "summary": "Diff adds Solo initialization progress utilities (phase messages + elapsed-time formatter + timeout helper) and a tightened, bounded lobby-readiness polling strategy with faster early retries (50ms initial delay). SoloGamePage is updated to track elapsed time during initialization and to use the new readiness polling helpers, but the truncated diff does not conclusively show the final UI behavior for Retry/Back controls and the exact rendering/disappearance rules for elapsed time.",
   "missing_requirements": [
     {
-      "id": "REQ-48",
-      "requirement": "Update SoloGamePage initialization so it does not surface the error message “The game server may be slow or experiencing issues” prematurely; keep user in loading with clear progress messaging; only fail after longer explicit timeout with Retry/Back controls.",
-      "reason": "Progress messaging and a longer explicit timeout helper are added, but the provided SoloGamePage diff is truncated before any rendering/error-panel logic; the diff excerpt does not show removal/avoidance of the specific premature error message nor confirm the error panel still includes RETRY and BACK_TO_MENU controls.",
+      "id": "REQ-54",
+      "requirement": "Solo Mode still transitions to INITIALIZATION_FAILED with Retry/Back controls if the lobby never becomes ready within the configured bounds/timeout.",
+      "reason": "The diff snippet for SoloGamePage is truncated before showing the error/failed-state rendering and controls. While the polling function returns null on timeout/cancellation, the evidence provided does not confirm the UI transitions to an explicit failure state with Retry/Back controls.",
       "evidence": [
-        "frontend/src/utils/soloInitProgress.ts",
         "frontend/src/pages/SoloGamePage.tsx (truncated)"
       ]
     },
     {
-      "id": "REQ-49",
-      "requirement": "Optimize SoloGamePage readiness polling/backoff: use lobby returned by startMatchAndGetLobby immediately when active and currentChallenge present; otherwise bounded retry that won’t fail within ~1s due to transient latency; render terminal when isActive and currentChallenge present without flashing error state.",
-      "reason": "Readiness check and bounded backoff utilities are present and handle Candid optionals, and SoloGamePage contains a polling loop, but the SoloGamePage diff is truncated before showing the decision logic that (a) skips polling when startMatchAndGetLobby already returns a ready lobby, and (b) avoids any intermediate error state before readiness.",
+      "id": "REQ-55",
+      "requirement": "The elapsed-time display updates while initialization is in progress and disappears once the terminal is ready or the error state is shown.",
+      "reason": "There is clear evidence of an interval updating elapsedMs during initState === 'initializing', but the render logic that shows/hides the elapsed-time text based on ready/error states is not included in the truncated SoloGamePage diff.",
       "evidence": [
-        "frontend/src/utils/soloReadiness.ts",
         "frontend/src/pages/SoloGamePage.tsx (truncated)"
       ]
-    },
-    {
-      "id": "REQ-50",
-      "requirement": "Backend startMatchAndGetLobby should not trap with “Match is already active” when lobby already active and has currentChallenge; instead return current LobbyView; keep host-only authorization; keep startMatch unchanged.",
-      "reason": "backend/main.mo is modified but the provided snippet is truncated and does not include the startMatchAndGetLobby implementation or any change showing it returns a LobbyView when already active instead of trapping.",
-      "evidence": [
-        "backend/main.mo (truncated)"
-      ]
     }
   ],
-  "hallucinated_features": [
-    {
-      "description": "Added an /updates route and corresponding navigation link/version display changes.",
-      "reason": "Not requested; the BuildRequest is specifically about Solo startup latency/error timing and a backend retry-friendly behavior.",
-      "evidence": [
-        "frontend-file-summaries.txt (mentions App.tsx new /updates route; AppLayout.tsx new UPDATES link and version display)"
-      ]
-    },
-    {
-      "description": "TerminalPanel enhanced with command history navigation, autocomplete suggestions, and additional UX changes.",
-      "reason": "Not requested and explicitly out of scope (no changes to terminal gameplay mechanics beyond startup/loading behavior).",
-      "evidence": [
-        "frontend-file-summaries.txt (mentions frontend/src/components/game/TerminalPanel.tsx enhancements)"
-      ]
-    },
-    {
-      "description": "Multiple multiplayer-related UI behavior changes (LobbyPage auto-join, MatchPage guard, various error panels) and other page changes (HomePage error panel, ResultsPage parsing, Leaderboard page display).",
-      "reason": "Not requested by REQ-48/49/50 and outside the stated focus on Solo startup/loading behavior and a specific backend method behavior.",
-      "evidence": [
-        "frontend-file-summaries.txt (mentions LobbyPage, MatchPage, HomePage, ResultsPage, LeaderboardPage changes)"
-      ]
-    }
-  ],
+  "hallucinated_features": [],
   "confidence": 0.62,
   "changed_files": [
-    "backend/main.mo",
     "frontend-file-summaries.txt",
     "frontend/src/pages/SoloGamePage.tsx",
     "frontend/src/utils/soloInitProgress.ts",

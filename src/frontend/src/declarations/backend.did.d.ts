@@ -69,7 +69,7 @@ export interface _SERVICE {
   'processTerminalCommand' : ActorMethod<[bigint, string], TerminalOutput>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'startMatch' : ActorMethod<[bigint], undefined>,
-  'startMatchAndGetLobby' : ActorMethod<[bigint], [] | [LobbyView]>,
+  'startMatchAndGetLobby' : ActorMethod<[bigint], LobbyView>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

@@ -32,18 +32,20 @@ export interface RetryConfig {
 }
 
 /**
- * Default retry configuration: 10 attempts over ~6 seconds
- * (100ms, 200ms, 400ms, 800ms, 1000ms, 1000ms, 1000ms, 1000ms, 1000ms, 1000ms)
+ * Tightened retry configuration: 12 attempts over ~4 seconds
+ * (50ms, 100ms, 200ms, 400ms, 800ms, 1000ms, 1000ms, 1000ms, 1000ms, 1000ms, 1000ms, 1000ms)
+ * Faster early retries improve time-to-ready in common transient-delay cases.
  */
 export const DEFAULT_RETRY_CONFIG: RetryConfig = {
-  maxAttempts: 10,
-  initialDelayMs: 100,
+  maxAttempts: 12,
+  initialDelayMs: 50,
   maxDelayMs: 1000,
   backoffMultiplier: 2,
 };
 
 /**
  * Calculate delay for the next retry attempt using exponential backoff.
+ * Attempt numbering starts at 0, so attempt 0 gets initialDelayMs.
  */
 export function getRetryDelay(attemptNumber: number, config: RetryConfig = DEFAULT_RETRY_CONFIG): number {
   const delay = config.initialDelayMs * Math.pow(config.backoffMultiplier, attemptNumber);

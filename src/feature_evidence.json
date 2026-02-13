@@ -2,28 +2,8 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-update-sologamepage-initialization-so-it-does-not-surface-the-error-message-the-game-server-may-be-slow-or-experiencing-issues-prematurely-during-normal-but-slower-solo-startup-instead-keep-the-user-in-a-loading-state-with-clear-progress-messaging-and-only-fail-after-a-longer-explicit-timeout-with-retry-back-controls",
-      "featureTitle": "Update SoloGamePage initialization so it does not surface the error message “The game server may be slow or experiencing issues” prematurely during normal-but-slower Solo startup; instead, keep the user in a loading state with clear progress messaging and only fail after a longer, explicit timeout with Retry/Back controls.",
-      "files": [
-        "frontend/src/pages/SoloGamePage.tsx",
-        "frontend/src/utils/soloInitProgress.ts"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-48"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-optimize-sologamepage-s-readiness-polling-backoff-behavior-to-reduce-perceived-latency-while-remaining-resilient-prefer-using-the-lobby-returned-by-startmatchandgetlobby-immediately-when-it-is-already-active-and-has-a-non-null-currentchallenge-otherwise-perform-a-bounded-retry-strategy-that-prioritizes-fast-success-but-tolerates-transient-delays-without-failing-early",
-      "featureTitle": "Optimize SoloGamePage’s readiness polling/backoff behavior to reduce perceived latency while remaining resilient: prefer using the lobby returned by startMatchAndGetLobby immediately when it is already active and has a non-null currentChallenge; otherwise, perform a bounded retry strategy that prioritizes fast success but tolerates transient delays without failing early.",
+      "featureId": "feature-reduce-perceived-and-actual-solo-startup-latency-by-tightening-the-solo-readiness-fallback-path-so-the-ui-reaches-the-playable-terminal-state-with-fewer-delays-when-startmatchandgetlobby-returns-a-lobby-that-is-not-yet-ready-active-non-null-currentchallenge-this-includes-tuning-the-bounded-retry-backoff-delays-used-by-solo-readiness-polling-to-favor-faster-early-retries-while-remaining-within-the-overall-solo-init-timeout",
+      "featureTitle": "Reduce perceived and actual Solo startup latency by tightening the Solo readiness fallback path so the UI reaches the playable terminal state with fewer delays when `startMatchAndGetLobby` returns a lobby that is not yet ready (active + non-null currentChallenge). This includes tuning the bounded retry/backoff delays used by Solo readiness polling to favor faster early retries while remaining within the overall Solo init timeout.",
       "files": [
         "frontend/src/pages/SoloGamePage.tsx",
         "frontend/src/utils/soloReadiness.ts"
@@ -37,7 +17,27 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-49"
+        "REQ-54"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-improve-the-solo-initialization-loading-ux-messaging-so-progress-feels-more-responsive-during-slower-startups-display-phase-specific-english-progress-text-and-include-elapsed-time-during-initializing-solo-mode-to-reassure-users-the-game-is-still-working-while-polling-for-readiness",
+      "featureTitle": "Improve the Solo initialization loading UX messaging so progress feels more responsive during slower startups: display phase-specific English progress text and include elapsed time during `INITIALIZING_SOLO_MODE` to reassure users the game is still working while polling for readiness.",
+      "files": [
+        "frontend/src/pages/SoloGamePage.tsx",
+        "frontend/src/utils/soloInitProgress.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-55"
       ],
       "confidence": "high"
     }

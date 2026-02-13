@@ -1,47 +1,47 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Improve Solo Mode startup UX and resilient readiness polling",
+  "title": "Tighten Solo startup latency and improve Solo loading progress UX",
   "requirements": [
     {
-      "id": "REQ-48",
-      "summary": "Keep Solo Mode in a clear loading/progress state during slower initialization and only fail after an explicit longer timeout with Retry/Back controls.",
+      "id": "REQ-54",
+      "summary": "Tighten Solo readiness fallback polling (faster early retries) while remaining bounded and within the Solo init timeout.",
       "acceptanceCriteria": [
-        "When navigating to /solo on a healthy but slow backend, the page stays in a loading state and does not immediately enter INITIALIZATION_FAILED with the “server may be slow” message.",
-        "Solo initialization only transitions to the error panel after an explicit longer timeout window (not after the current short polling window), and the error panel still includes RETRY and BACK_TO_MENU.",
-        "User-facing loading text is in English and clearly indicates that the game is still connecting/loading (without blaming the user)."
+        "When navigating to /solo, if `startMatchAndGetLobby` returns a lobby that is not ready, the subsequent readiness polling attempts occur with tighter early delays than the current default (100ms, 200ms, 400ms, ...), improving time-to-ready in common transient-delay cases.",
+        "The readiness polling remains bounded (no infinite loops) and respects the overall Solo initialization timeout (currently defined in `frontend/src/utils/soloInitProgress.ts`).",
+        "Solo Mode still transitions to `INITIALIZATION_FAILED` with Retry/Back controls if the lobby never becomes ready within the configured bounds/timeout."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/SoloGamePage.tsx",
+          "path": "frontend/src/utils/soloReadiness.ts",
           "operation": "modify",
-          "description": "Revise Solo initialization state handling to use explicit phase-based progress messaging (e.g., creating lobby, starting match, waiting for challenge) and introduce a longer, explicit overall timeout before transitioning to INITIALIZATION_FAILED. Ensure the failure view remains the existing error panel with RETRY and BACK_TO_MENU, and ensure the “server may be slow…” messaging is only shown after the longer timeout rather than after the short initial polling window."
+          "description": "Adjust the Solo readiness retry/backoff strategy to favor faster early retries (e.g., smaller initial delays and/or a tighter early schedule) while staying bounded; also correct the retry-delay calculation so attempt #1 maps to the intended initial delay (avoid skipping the first interval)."
         },
         {
-          "path": "frontend/src/utils/soloInitProgress.ts",
-          "operation": "create",
-          "description": "Add a small utility to support Solo initialization UX needs (e.g., consistent progress phase labels, elapsed-time formatting, and/or timeout helpers) so SoloGamePage can present clear English progress updates while waiting without prematurely failing."
+          "path": "frontend/src/pages/SoloGamePage.tsx",
+          "operation": "modify",
+          "description": "Wire the updated readiness polling configuration into the Solo fallback path (used when `startMatchAndGetLobby` returns a not-ready lobby), ensuring the polling loop remains bounded and continues to respect the overall Solo init timeout check before/within waits."
         }
       ]
     },
     {
-      "id": "REQ-49",
-      "summary": "Optimize Solo readiness checks: immediately accept ready lobbies from startMatchAndGetLobby; otherwise use bounded retries/backoff that favors quick success while tolerating transient delays without early failure.",
+      "id": "REQ-55",
+      "summary": "Add phase-specific Solo initialization progress messaging with an updating elapsed-time display during initialization.",
       "acceptanceCriteria": [
-        "If startMatchAndGetLobby returns an active lobby with a present currentChallenge, SoloGamePage transitions to the ready terminal view without performing additional getLobby polling.",
-        "If the initial returned lobby is not ready, subsequent retries/polling use a bounded strategy that is less likely to fail within ~1 second solely due to transient latency.",
-        "The terminal view renders once lobby.isActive is true and currentChallenge is present (correctly handling Candid optionals), without flashing an error state in between."
+        "During Solo initialization (loading state), the UI shows the current phase message (creating/starting/loading) and also shows elapsed time since initialization started in clear English (e.g., \"Elapsed: 3 seconds\").",
+        "The elapsed-time display updates while initialization is in progress and disappears once the terminal is ready or the error state is shown.",
+        "All user-facing text added/changed for this improvement is in English."
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/SoloGamePage.tsx",
           "operation": "modify",
-          "description": "Update the readiness logic to: (1) short-circuit to READY immediately when the lobby returned by startMatchAndGetLobby isActive and has a present currentChallenge; (2) when not ready, replace the current 5x200ms polling with a bounded retry strategy (fast initial checks followed by backoff) that does not fail within ~1 second and does not transition through an error state while still within the explicit longer timeout window; (3) centralize and harden currentChallenge presence checks to correctly handle Candid optional encodings without UI flashing."
+          "description": "Add an initialization-only elapsed-time UI line under the phase message (English text), backed by a timer that updates while `initState === 'initializing'`, and ensure it stops/clears when transitioning to ready or error so the elapsed-time display disappears in terminal/error states."
         },
         {
-          "path": "frontend/src/utils/soloReadiness.ts",
-          "operation": "create",
-          "description": "Implement a reusable Solo readiness helper (e.g., isLobbyReady + bounded retry/backoff scheduler) that encapsulates the ‘isActive && currentChallenge present’ condition and provides a resilient polling plan for SoloGamePage to use."
+          "path": "frontend/src/utils/soloInitProgress.ts",
+          "operation": "modify",
+          "description": "Extend/adjust existing elapsed-time formatting helpers as needed to support clear English elapsed-time display (e.g., producing \"3 seconds\"), keeping the Solo init timeout constant and referenced by the Solo initialization flow."
         }
       ]
     }

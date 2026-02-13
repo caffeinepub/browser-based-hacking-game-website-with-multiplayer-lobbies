@@ -12,6 +12,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { unwrapCandidOptional } from '../utils/unwrapCandidOptional';
 import { 
   getPhaseMessage, 
+  formatElapsedTime,
   hasExceededTimeout, 
   SOLO_INIT_TIMEOUT_MS,
   type InitPhase 
@@ -42,23 +43,53 @@ export default function SoloGamePage() {
   const [score, setScore] = useState(0);
   const [attempts, setAttempts] = useState(0);
   const [commandCount, setCommandCount] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
   
   const initStartTimeRef = useRef<number>(0);
   const initAttemptTokenRef = useRef(0);
   const cancelDelayRef = useRef<(() => void) | null>(null);
+  const elapsedTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Clear any pending delays on unmount
+  // Clear any pending delays and timers on unmount
   useEffect(() => {
     return () => {
       if (cancelDelayRef.current) {
         cancelDelayRef.current();
         cancelDelayRef.current = null;
       }
+      if (elapsedTimerRef.current) {
+        clearInterval(elapsedTimerRef.current);
+        elapsedTimerRef.current = null;
+      }
     };
   }, []);
 
+  // Elapsed time tracker during initialization
+  useEffect(() => {
+    if (initState === 'initializing') {
+      // Start the elapsed time timer
+      elapsedTimerRef.current = setInterval(() => {
+        setElapsedMs(Date.now() - initStartTimeRef.current);
+      }, 100);
+    } else {
+      // Stop and clear the timer when not initializing
+      if (elapsedTimerRef.current) {
+        clearInterval(elapsedTimerRef.current);
+        elapsedTimerRef.current = null;
+      }
+      setElapsedMs(0);
+    }
+
+    return () => {
+      if (elapsedTimerRef.current) {
+        clearInterval(elapsedTimerRef.current);
+        elapsedTimerRef.current = null;
+      }
+    };
+  }, [initState]);
+
   /**
-   * Resilient polling for lobby readiness with bounded retries and backoff.
+   * Resilient polling for lobby readiness with bounded retries and tighter early backoff.
    * Only used as fallback when startMatchAndGetLobby doesn't return a ready lobby.
    */
   const pollLobbyUntilReady = async (
@@ -73,7 +104,7 @@ export default function SoloGamePage() {
         return null;
       }
       
-      // Check overall timeout
+      // Check overall timeout before each attempt
       if (hasExceededTimeout(initStartTimeRef.current)) {
         return null;
       }
@@ -83,8 +114,9 @@ export default function SoloGamePage() {
           throw new Error('Actor not available');
         }
         
-        // Fetch fresh lobby state
-        const result = await actor.getLobby(targetLobbyId);
+        // Fetch fresh lobby state and unwrap Candid optional
+        const rawResult = await actor.getLobby(targetLobbyId);
+        const result = unwrapCandidOptional<LobbyView>(rawResult as any);
         
         // Check if ready
         if (isLobbyReady(result)) {
@@ -92,14 +124,12 @@ export default function SoloGamePage() {
         }
         
         // Not ready yet, wait before next attempt
-        attemptNumber++;
-        
-        if (attemptNumber >= DEFAULT_RETRY_CONFIG.maxAttempts) {
+        if (attemptNumber >= DEFAULT_RETRY_CONFIG.maxAttempts - 1) {
           // Exceeded max attempts
           return null;
         }
         
-        // Calculate delay with exponential backoff
+        // Calculate delay with exponential backoff (attempt 0 gets initialDelayMs)
         const delay = getRetryDelay(attemptNumber);
         const { promise, cancel } = createCancellableDelay(delay);
         cancelDelayRef.current = cancel;
@@ -107,11 +137,12 @@ export default function SoloGamePage() {
         await promise;
         cancelDelayRef.current = null;
         
-      } catch (error) {
-        console.error('Polling error:', error);
         attemptNumber++;
         
-        if (attemptNumber >= DEFAULT_RETRY_CONFIG.maxAttempts) {
+      } catch (error) {
+        console.error('Polling error:', error);
+        
+        if (attemptNumber >= DEFAULT_RETRY_CONFIG.maxAttempts - 1) {
           return null;
         }
         
@@ -122,6 +153,8 @@ export default function SoloGamePage() {
         
         await promise;
         cancelDelayRef.current = null;
+        
+        attemptNumber++;
       }
     }
     
@@ -185,7 +218,7 @@ export default function SoloGamePage() {
         return;
       }
       
-      // Step 2: Start match and get lobby in one call
+      // Step 2: Start match and get lobby in one call (cache is hydrated automatically)
       setInitPhase('starting');
       
       try {
@@ -206,7 +239,7 @@ export default function SoloGamePage() {
         }
         
         // Check if already ready (fast path - no polling needed)
-        if (lobbyView && isLobbyReady(lobbyView)) {
+        if (isLobbyReady(lobbyView)) {
           // Success! Ready immediately
           setLobby(lobbyView);
           setInitState('ready');
@@ -285,6 +318,12 @@ export default function SoloGamePage() {
       cancelDelayRef.current = null;
     }
     
+    // Clear elapsed timer
+    if (elapsedTimerRef.current) {
+      clearInterval(elapsedTimerRef.current);
+      elapsedTimerRef.current = null;
+    }
+    
     // Clear cached lobby data if we have a lobbyId
     if (lobbyId) {
       queryClient.removeQueries({ queryKey: ['lobby', lobbyId.toString()] });
@@ -303,6 +342,7 @@ export default function SoloGamePage() {
     setScore(0);
     setAttempts(0);
     setCommandCount(0);
+    setElapsedMs(0);
   };
 
   const handleCommandProcess = async (command: string) => {
@@ -363,79 +403,112 @@ export default function SoloGamePage() {
               <p className="text-xs text-muted-foreground terminal-text mb-2 uppercase tracking-wide">
                 Reason:
               </p>
-              <p className="text-foreground terminal-text font-semibold leading-relaxed">
+              <p className="text-sm text-foreground terminal-text font-mono">
                 {displayError}
               </p>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex gap-3 justify-center">
             <Button
               onClick={handleRetry}
-              className="terminal-border bg-primary hover:bg-primary/90 terminal-text font-bold"
+              variant="default"
+              className="terminal-glow"
             >
-              RETRY
+              <Loader2 className="w-4 h-4 mr-2" />
+              Retry
             </Button>
             <Button
               onClick={() => navigate({ to: '/' })}
               variant="outline"
-              className="terminal-border terminal-text font-bold"
             >
-              BACK_TO_MENU
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Menu
             </Button>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Loading state - show clear progress message
-  if (initState === 'initializing' || !lobby || !isLobbyReady(lobby)) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto terminal-glow" />
-          <p className="text-primary terminal-text text-lg">{getPhaseMessage(initPhase)}</p>
-          <p className="text-muted-foreground terminal-text text-sm">
-            Please wait while we prepare your game...
+          <p className="text-xs text-muted-foreground terminal-text italic">
+            This is a simulation. No real systems were harmed.
           </p>
         </div>
       </div>
     );
   }
 
-  // Ready state - game is active (challenge is guaranteed non-null here)
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => navigate({ to: '/' })}
-          className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors terminal-text"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          BACK_TO_MENU
-        </button>
-
-        <div className="flex gap-6 terminal-text">
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">SCORE</p>
-            <p className="text-2xl font-bold text-primary terminal-glow">{score}</p>
+  // Loading state with elapsed time display
+  if (initState === 'initializing') {
+    const phaseMessage = getPhaseMessage(initPhase);
+    const elapsedText = formatElapsedTime(elapsedMs);
+    
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="terminal-border bg-card p-8 max-w-md space-y-6 text-center">
+          <Loader2 className="w-16 h-16 text-primary mx-auto animate-spin terminal-glow" />
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-primary terminal-text tracking-wider">
+              INITIALIZING_SOLO_MODE
+            </h2>
+            <p className="text-sm text-muted-foreground terminal-text">
+              {phaseMessage}
+            </p>
+            <p className="text-xs text-muted-foreground/70 terminal-text">
+              Elapsed: {elapsedText}
+            </p>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">COMMANDS</p>
-            <p className="text-2xl font-bold text-secondary">{commandCount}</p>
+          <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+            <div className="h-full bg-primary terminal-glow animate-pulse" style={{ width: '60%' }} />
           </div>
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">ERRORS</p>
-            <p className="text-2xl font-bold text-destructive">{attempts}</p>
-          </div>
+          <p className="text-xs text-muted-foreground terminal-text italic">
+            This is a simulation. No real systems were harmed.
+          </p>
         </div>
       </div>
+    );
+  }
 
-      <TerminalPanel
-        challenge={challenge!}
-        onCommandProcess={handleCommandProcess}
-        isProcessing={processCommand.isPending}
-      />
-    </div>
-  );
+  // Ready state - show terminal
+  if (initState === 'ready' && challenge) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="mb-6 flex items-center justify-between">
+          <Button
+            onClick={() => navigate({ to: '/' })}
+            variant="outline"
+            size="sm"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Exit
+          </Button>
+          <div className="flex gap-6 text-sm terminal-text">
+            <div>
+              <span className="text-muted-foreground">Score:</span>{' '}
+              <span className="text-primary font-bold terminal-glow">{score}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Commands:</span>{' '}
+              <span className="text-foreground font-bold">{commandCount}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Attempts:</span>{' '}
+              <span className="text-foreground font-bold">{attempts}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="terminal-border bg-card p-6">
+            <h2 className="text-xl font-bold text-primary terminal-text mb-2 terminal-glow">
+              {challenge.name}
+            </h2>
+            <p className="text-sm text-muted-foreground terminal-text">
+              {challenge.description}
+            </p>
+          </div>
+
+          <TerminalPanel challenge={challenge} onCommandProcess={handleCommandProcess} />
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback (should not reach here)
+  return null;
 }
